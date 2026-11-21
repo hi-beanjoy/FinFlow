@@ -1,0 +1,2527 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>FinLedger — Personal Finance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            forest: {
+              bg: '#0E1713',
+              card: '#16221C',
+              elevated: '#1E2E26',
+              border: '#23352C',
+              muted: '#7B9387',
+              green: '#22C55E',
+              amber: '#F59E0B',
+              terracotta: '#EF4444'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: #070C0A;
+      color: #F3F7F5;
+      font-family: 'Inter', sans-serif;
+      overscroll-behavior-y: none;
+    }
+    .app-shell {
+      background-color: #0E1713;
+    }
+    @media (min-width: 640px) {
+      .app-shell {
+        width: 414px;
+        height: 850px;
+        max-height: 92vh;
+        border: 6px solid #1B2922;
+        border-radius: 40px;
+        box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.88), 0 0 0 1px rgba(255, 255, 255, 0.06);
+      }
+    }
+    .app-scroll::-webkit-scrollbar {
+      width: 3px;
+      height: 3px;
+    }
+    .app-scroll::-webkit-scrollbar-thumb {
+      background: #23352C;
+      border-radius: 9999px;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .sheet-drawer {
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease;
+    }
+    .sheet-drawer.closed {
+      transform: translateY(104%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .sheet-drawer.open {
+      transform: translateY(0%);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-box {
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+    }
+    .modal-box.closed {
+      transform: scale(0.95);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .modal-box.open {
+      transform: scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .tx-card-press {
+      user-select: none;
+      -webkit-user-select: none;
+      transition: transform 0.14s ease, background-color 0.15s ease;
+    }
+    .tx-card-press:active {
+      transform: scale(0.985);
+    }
+  </style>
+</head>
+<body class="min-h-screen sm:py-5 flex items-center justify-center">
+
+  <!-- Main App Container: Full Viewport on Mobile, Centered Phone Shell on Desktop -->
+  <div id="app-root" class="app-shell w-full h-screen relative overflow-hidden flex flex-col">
+
+    <!-- Toast Notification Banner -->
+    <div id="toast-banner" class="hidden absolute top-3 inset-x-4 z-50 bg-[#1E2E26] border border-[#22C55E]/50 text-white text-xs font-medium px-3.5 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2">
+      <i id="toast-icon" data-lucide="check-circle-2" class="w-4 h-4 text-[#22C55E] shrink-0"></i>
+      <span id="toast-text" class="truncate">Saved!</span>
+    </div>
+
+    <!-- ==================== TAB 1: HOME ==================== -->
+    <main id="tab-home" class="main-tab flex-1 overflow-y-auto app-scroll px-4 pb-24 pt-4 space-y-4">
+      <!-- Universal Month Switcher Header (< Month Year >) -->
+      <header class="flex items-center justify-center gap-5 py-1">
+        <button type="button" onclick="shiftMonth(-1)" aria-label="Previous Month" class="p-2 rounded-xl text-[#7B9387] hover:text-white hover:bg-[#16221C] transition-colors">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+        <span id="universal-month-label" class="text-xs font-semibold tracking-wide text-[#A3B8AE] min-w-[118px] text-center">November 2026</span>
+        <button type="button" onclick="shiftMonth(1)" aria-label="Next Month" class="p-2 rounded-xl text-[#7B9387] hover:text-white hover:bg-[#16221C] transition-colors">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </header>
+
+      <!-- Row 1: 3 Minimalist Wallet Cards (BANK, MOBILE, CASH) -->
+      <section class="grid grid-cols-3 gap-2.5">
+        <div class="bg-[#16221C] border border-[#23352C]/80 rounded-2xl p-3.5 flex flex-col items-center text-center">
+          <div class="w-8 h-8 rounded-full bg-[#1E2E26] flex items-center justify-center text-[#8CA397] mb-2">
+            <i data-lucide="landmark" class="w-4 h-4"></i>
+          </div>
+          <span class="text-[10px] font-semibold tracking-wider uppercase text-[#7B9387]">BANK</span>
+          <span id="home-bal-bank" class="text-base font-bold font-mono text-white mt-0.5 truncate max-w-full">0</span>
+        </div>
+
+        <div class="bg-[#16221C] border border-[#23352C]/80 rounded-2xl p-3.5 flex flex-col items-center text-center">
+          <div class="w-8 h-8 rounded-full bg-[#1E2E26] flex items-center justify-center text-[#8CA397] mb-2">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+          </div>
+          <span class="text-[10px] font-semibold tracking-wider uppercase text-[#7B9387]">MOBILE</span>
+          <span id="home-bal-mobile" class="text-base font-bold font-mono text-white mt-0.5 truncate max-w-full">0</span>
+        </div>
+
+        <div class="bg-[#16221C] border border-[#23352C]/80 rounded-2xl p-3.5 flex flex-col items-center text-center">
+          <div class="w-8 h-8 rounded-full bg-[#1E2E26] flex items-center justify-center text-[#8CA397] mb-2">
+            <i data-lucide="banknote" class="w-4 h-4"></i>
+          </div>
+          <span class="text-[10px] font-semibold tracking-wider uppercase text-[#7B9387]">CASH</span>
+          <span id="home-bal-cash" class="text-base font-bold font-mono text-white mt-0.5 truncate max-w-full">0</span>
+        </div>
+      </section>
+
+      <!-- Row 2: Hero NET BALANCE Card (Strictly label + big centered number, zero subtitles) -->
+      <section class="bg-[#16221C] border border-[#23352C] rounded-2xl py-7 px-4 text-center">
+        <span class="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#7B9387]">NET BALANCE</span>
+        <div id="home-net-balance" class="text-4xl font-bold font-mono text-white tracking-tight mt-2">0</div>
+      </section>
+
+      <!-- Row 3: Dues & Upcoming Payments (Clean cards, no Manage button, no due date on surface, icon-only settle button) -->
+      <section class="pt-1 space-y-2.5">
+        <div class="px-1">
+          <h2 class="text-sm font-semibold text-white">Dues &amp; Upcoming Payments</h2>
+        </div>
+        <div id="home-dues-list" class="space-y-2">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+    </main>
+
+    <!-- ==================== TAB 2: RECORDS (ADD | HISTORY | DEBTS) ==================== -->
+    <main id="tab-records" class="main-tab hidden flex-1 overflow-y-auto app-scroll px-4 pb-24 pt-4 space-y-4">
+      <div class="px-0.5">
+        <h1 class="text-lg font-bold tracking-tight text-white">Records</h1>
+      </div>
+
+      <!-- 3-Segment Switcher: [ Add ] [ History ] [ Debts ] -->
+      <div class="grid grid-cols-3 gap-1 bg-[#16221C] p-1 rounded-2xl border border-[#23352C]">
+        <button type="button" onclick="setRecordsSubTab('add')" id="rec-sub-add" class="py-2 rounded-xl text-xs font-semibold bg-[#1E2E26] text-white transition-all">Add</button>
+        <button type="button" onclick="setRecordsSubTab('history')" id="rec-sub-history" class="py-2 rounded-xl text-xs font-medium text-[#7B9387] hover:text-white transition-all">History</button>
+        <button type="button" onclick="setRecordsSubTab('debts')" id="rec-sub-debts" class="py-2 rounded-xl text-xs font-medium text-[#7B9387] hover:text-white transition-all">Debts</button>
+      </div>
+
+      <!-- -------------------- SUB-TAB A: ADD (2x2 Grid of 4 Large Action Tiles) -------------------- -->
+      <section id="records-view-add" class="grid grid-cols-2 gap-3 pt-1">
+        <!-- Tile 1: Add Income -->
+        <button type="button" onclick="openAddIncomeSheet()" class="bg-[#16221C] hover:bg-[#1E2E26] active:scale-[0.98] border border-[#23352C] rounded-2xl p-4 h-40 flex flex-col items-start justify-between text-left transition-all">
+          <div class="w-10 h-10 rounded-2xl bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center">
+            <i data-lucide="arrow-down-left" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white leading-snug">Add Income</div>
+            <div class="text-[11px] text-[#7B9387] mt-0.5">Log inflow to wallet</div>
+          </div>
+        </button>
+
+        <!-- Tile 2: Add Receivable / Payable -->
+        <button type="button" onclick="openAddDueSheet()" class="bg-[#16221C] hover:bg-[#1E2E26] active:scale-[0.98] border border-[#23352C] rounded-2xl p-4 h-40 flex flex-col items-start justify-between text-left transition-all">
+          <div class="w-10 h-10 rounded-2xl bg-[#F59E0B]/15 text-[#F59E0B] flex items-center justify-center">
+            <i data-lucide="calendar-plus" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white leading-snug">Add Receivable / Payable</div>
+            <div class="text-[11px] text-[#7B9387] mt-0.5">One-time or monthly</div>
+          </div>
+        </button>
+
+        <!-- Tile 3: Complete Receivable -->
+        <button type="button" onclick="openCompleteDueSheet('receivable')" class="bg-[#16221C] hover:bg-[#1E2E26] active:scale-[0.98] border border-[#23352C] rounded-2xl p-4 h-40 flex flex-col items-start justify-between text-left transition-all relative">
+          <div class="w-full flex items-center justify-between">
+            <div class="w-10 h-10 rounded-2xl bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center">
+              <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+            </div>
+            <span id="tile-rec-badge" class="px-2 py-0.5 rounded-lg bg-[#1E2E26] border border-[#23352C] text-[10px] font-mono font-semibold text-[#22C55E]">0 open</span>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white leading-snug">Complete Receivable</div>
+            <div class="text-[11px] text-[#7B9387] mt-0.5">Collect pending dues</div>
+          </div>
+        </button>
+
+        <!-- Tile 4: Complete Payable -->
+        <button type="button" onclick="openCompleteDueSheet('payable')" class="bg-[#16221C] hover:bg-[#1E2E26] active:scale-[0.98] border border-[#23352C] rounded-2xl p-4 h-40 flex flex-col items-start justify-between text-left transition-all relative">
+          <div class="w-full flex items-center justify-between">
+            <div class="w-10 h-10 rounded-2xl bg-[#F59E0B]/15 text-[#F59E0B] flex items-center justify-center">
+              <i data-lucide="badge-check" class="w-5 h-5"></i>
+            </div>
+            <span id="tile-pay-badge" class="px-2 py-0.5 rounded-lg bg-[#1E2E26] border border-[#23352C] text-[10px] font-mono font-semibold text-[#F59E0B]">0 open</span>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white leading-snug">Complete Payable</div>
+            <div class="text-[11px] text-[#7B9387] mt-0.5">Settle pending bills</div>
+          </div>
+        </button>
+      </section>
+
+      <!-- -------------------- SUB-TAB B: HISTORY (Universal Month + Filter Pills + Edit Icon & Long-Press) -------------------- -->
+      <section id="records-view-history" class="hidden space-y-3">
+        <!-- Single-row type filter pills -->
+        <div class="grid grid-cols-4 gap-1 bg-[#16221C] p-1 rounded-2xl border border-[#23352C]">
+          <button type="button" onclick="setHistoryFilter('all')" id="hf-all" class="py-1.5 rounded-xl text-[11px] font-semibold bg-[#1E2E26] text-white transition-all">All</button>
+          <button type="button" onclick="setHistoryFilter('expense')" id="hf-expense" class="py-1.5 rounded-xl text-[11px] font-medium text-[#7B9387] hover:text-white transition-all">Expense</button>
+          <button type="button" onclick="setHistoryFilter('income')" id="hf-income" class="py-1.5 rounded-xl text-[11px] font-medium text-[#7B9387] hover:text-white transition-all">Income</button>
+          <button type="button" onclick="setHistoryFilter('transfer')" id="hf-transfer" class="py-1.5 rounded-xl text-[11px] font-medium text-[#7B9387] hover:text-white transition-all">Transfer</button>
+        </div>
+
+        <!-- Date-grouped chronological transactions -->
+        <div id="history-list-container" class="space-y-3.5">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- -------------------- SUB-TAB C: DEBTS (Loans Taken Only + Right-Aligned '[+]' Button at End of List) -------------------- -->
+      <section id="records-view-debts" class="hidden space-y-3">
+        <div id="debts-list-container" class="space-y-2.5">
+          <!-- Populated dynamically -->
+        </div>
+
+        <!-- Right-aligned '[+]' button at the bottom/end of the debt list -->
+        <div class="flex justify-end pt-1">
+          <button type="button" onclick="openAddDebtModal()" aria-label="Add Debt or Loan" class="w-12 h-12 rounded-2xl bg-[#1E2E26] hover:bg-[#22C55E] text-[#22C55E] hover:text-[#09120E] border border-[#2C4237] shadow-lg flex items-center justify-center active:scale-95 transition-all">
+            <i data-lucide="plus" class="w-5 h-5 stroke-[2.5]"></i>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==================== TAB 3: BUDGET ==================== -->
+    <main id="tab-budget" class="main-tab hidden flex-1 overflow-y-auto app-scroll px-4 pb-24 pt-4 space-y-4">
+      <div class="flex items-center justify-between px-0.5">
+        <h1 class="text-lg font-bold tracking-tight text-white">Budget</h1>
+        <button type="button" onclick="openSetBudgetModal()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#16221C] hover:bg-[#1E2E26] border border-[#23352C] text-[11px] font-semibold text-[#22C55E] transition-colors">
+          <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+          <span>Set Limit</span>
+        </button>
+      </div>
+
+      <!-- Overall Monthly Budget Summary Card -->
+      <section class="bg-[#16221C] border border-[#23352C] rounded-2xl p-4 space-y-3.5">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="text-[10px] font-semibold tracking-[0.14em] uppercase text-[#7B9387]">REMAINING ALLOWANCE</span>
+            <div id="budget-overall-remaining" class="text-3xl font-bold font-mono text-white tracking-tight mt-1">0</div>
+          </div>
+          <div class="text-right">
+            <span class="text-[10px] font-semibold tracking-wider uppercase text-[#7B9387]">SPENT / LIMIT</span>
+            <div class="text-xs font-mono font-semibold text-[#A3B8AE] mt-1.5">
+              <span id="budget-overall-spent" class="text-white">0</span> / <span id="budget-overall-limit">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="w-full h-2.5 rounded-full bg-[#0E1713] border border-[#23352C]/70 overflow-hidden">
+            <div id="budget-overall-bar" class="h-full rounded-full bg-[#22C55E] transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-[#7B9387]">
+            <span id="budget-overall-pct">0% used</span>
+            <span id="budget-overall-status" class="text-[#22C55E] font-medium">On track</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Category Limits List -->
+      <section class="space-y-2.5">
+        <div class="flex items-center justify-between px-1">
+          <span class="text-xs font-semibold text-[#9BB0A5]">Category Caps</span>
+          <span id="budget-month-tag" class="text-[11px] text-[#7B9387]">November 2026</span>
+        </div>
+        <div id="budget-categories-list" class="space-y-2.5">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+    </main>
+
+    <!-- ==================== TAB 4: SETTINGS ==================== -->
+    <main id="tab-settings" class="main-tab hidden flex-1 overflow-y-auto app-scroll px-4 pb-24 pt-4 space-y-4">
+      <div class="px-0.5">
+        <h1 class="text-lg font-bold tracking-tight text-white">Settings</h1>
+      </div>
+
+      <!-- 1. Wallet Balances Section -->
+      <section class="bg-[#16221C] border border-[#23352C] rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-[#7B9387]">Wallet Balances</span>
+          <span class="text-[10px] text-[#7B9387]">Direct balance override</span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2">
+            <span class="text-xs font-medium text-white">Bank</span>
+            <input id="set-bal-bank" type="number" step="any" class="w-32 text-right bg-transparent font-mono text-sm font-bold text-white focus:outline-none" />
+          </div>
+          <div class="flex items-center justify-between bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2">
+            <span class="text-xs font-medium text-white">Mobile</span>
+            <input id="set-bal-mobile" type="number" step="any" class="w-32 text-right bg-transparent font-mono text-sm font-bold text-white focus:outline-none" />
+          </div>
+          <div class="flex items-center justify-between bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2">
+            <span class="text-xs font-medium text-white">Cash</span>
+            <input id="set-bal-cash" type="number" step="any" class="w-32 text-right bg-transparent font-mono text-sm font-bold text-white focus:outline-none" />
+          </div>
+        </div>
+        <button type="button" onclick="saveWalletBalancesFromSettings()" class="w-full py-2.5 rounded-xl bg-[#22C55E] hover:opacity-95 active:scale-[0.99] text-[#09120E] font-bold text-xs tracking-wide transition-all">
+          Save Balances
+        </button>
+      </section>
+
+      <!-- 2. Data Reset Section (Directly below Wallet Balances — NEVER alters Debt logs) -->
+      <section class="bg-[#16221C] border border-[#23352C] rounded-2xl p-4 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-[#7B9387]">Data Reset</span>
+          <span class="text-[10px] text-[#7B9387]">Debts remain untouched</span>
+        </div>
+        <button type="button" onclick="confirmResetAction('month')" class="w-full py-2.5 px-3.5 rounded-xl bg-[#1E2E26] hover:bg-[#263A30] border border-[#2C4237] text-left flex items-center justify-between transition-colors">
+          <div>
+            <div class="text-xs font-semibold text-[#F59E0B]">Reset Month Transactions</div>
+            <div id="reset-month-subtext" class="text-[10px] text-[#7B9387] mt-0.5">Clears history &amp; dues for November 2026 only</div>
+          </div>
+          <i data-lucide="rotate-ccw" class="w-4 h-4 text-[#F59E0B] shrink-0"></i>
+        </button>
+
+        <button type="button" onclick="confirmResetAction('everything')" class="w-full py-2.5 px-3.5 rounded-xl bg-[#2B1917] hover:bg-[#38201E] border border-[#4A2925] text-left flex items-center justify-between transition-colors">
+          <div>
+            <div class="text-xs font-semibold text-[#EF4444]">Reset Everything</div>
+            <div class="text-[10px] text-[#9E7873] mt-0.5">Clears history, dues, budgets &amp; sets wallets to 0</div>
+          </div>
+          <i data-lucide="trash-2" class="w-4 h-4 text-[#EF4444] shrink-0"></i>
+        </button>
+      </section>
+
+      <!-- 3. Currency Symbol Selector -->
+      <section class="bg-[#16221C] border border-[#23352C] rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <div class="text-xs font-semibold text-white">Currency Symbol</div>
+          <div class="text-[11px] text-[#7B9387]">Prefix shown across all amounts</div>
+        </div>
+        <select id="set-currency" onchange="updateCurrencySymbol(this.value)" class="bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#22C55E]">
+          <option value="৳">৳ (BDT)</option>
+          <option value="$">$ (USD)</option>
+          <option value="€">€ (EUR)</option>
+          <option value="£">£ (GBP)</option>
+          <option value="₹">₹ (INR)</option>
+          <option value="¥">¥ (JPY/CNY)</option>
+          <option value="">None</option>
+        </select>
+      </section>
+
+      <!-- 4. Custom Categories & Income Sources Manager -->
+      <section class="bg-[#16221C] border border-[#23352C] rounded-2xl p-4 space-y-3">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-[#7B9387] block">Expense Categories</span>
+        <div id="settings-exp-cats" class="flex flex-wrap gap-1.5"></div>
+        <div class="flex gap-2">
+          <input id="settings-new-cat" type="text" placeholder="Add expense category..." class="flex-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-1.5 text-xs text-white placeholder-[#4B6357] focus:outline-none focus:border-[#22C55E]" />
+          <button type="button" onclick="addCategoryFromSettings()" class="px-3 py-1.5 rounded-xl bg-[#1E2E26] hover:bg-[#22C55E] text-[#22C55E] hover:text-[#09120E] text-xs font-bold transition-colors">Add</button>
+        </div>
+
+        <div class="border-t border-[#23352C] pt-3 space-y-2.5">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-[#7B9387] block">Income Sources</span>
+          <div id="settings-inc-sources" class="flex flex-wrap gap-1.5"></div>
+          <div class="flex gap-2">
+            <input id="settings-new-source" type="text" placeholder="Add income source..." class="flex-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-1.5 text-xs text-white placeholder-[#4B6357] focus:outline-none focus:border-[#22C55E]" />
+            <button type="button" onclick="addSourceFromSettings()" class="px-3 py-1.5 rounded-xl bg-[#1E2E26] hover:bg-[#22C55E] text-[#22C55E] hover:text-[#09120E] text-xs font-bold transition-colors">Add</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. JSON Export / Import + CSV Export -->
+      <section class="bg-[#16221C] border border-[#23352C] rounded-2xl p-4 space-y-2.5">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-[#7B9387] block">Backup &amp; Export</span>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="exportJSON()" class="py-2.5 px-2 rounded-xl bg-[#1E2E26] hover:bg-[#263A30] border border-[#2C4237] text-[11px] font-semibold text-white flex flex-col items-center gap-1">
+            <i data-lucide="download" class="w-4 h-4 text-[#22C55E]"></i>
+            <span>Export JSON</span>
+          </button>
+          <button type="button" onclick="document.getElementById('import-json-file').click()" class="py-2.5 px-2 rounded-xl bg-[#1E2E26] hover:bg-[#263A30] border border-[#2C4237] text-[11px] font-semibold text-white flex flex-col items-center gap-1">
+            <i data-lucide="upload" class="w-4 h-4 text-[#F59E0B]"></i>
+            <span>Import JSON</span>
+          </button>
+          <button type="button" onclick="exportCSV()" class="py-2.5 px-2 rounded-xl bg-[#1E2E26] hover:bg-[#263A30] border border-[#2C4237] text-[11px] font-semibold text-white flex flex-col items-center gap-1">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-sky-400"></i>
+            <span>Export CSV</span>
+          </button>
+        </div>
+        <input id="import-json-file" type="file" accept=".json,application/json" onchange="importJSON(event)" class="hidden" />
+      </section>
+    </main>
+
+    <!-- ==================== GLOBAL OVERLAY BACKDROP ==================== -->
+    <div id="overlay-backdrop" onclick="closeAllOverlays()" class="hidden absolute inset-0 bg-black/70 backdrop-blur-[1px] z-20 transition-opacity"></div>
+
+    <!-- ==================== SHEET 1: CENTER '+' FAST EXPENSE / TRANSFER POPUP ==================== -->
+    <div id="sheet-quick-plus" class="sheet-drawer closed absolute inset-x-0 bottom-0 z-30 bg-[#14201A] border-t border-[#283C32] rounded-t-3xl p-4 shadow-2xl space-y-3">
+      <!-- Top Segmented Control: [ Expense | Transfer ] -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="grid grid-cols-2 gap-1 bg-[#0E1713] p-1 rounded-xl border border-[#23352C] flex-1">
+          <button type="button" onclick="setPlusMode('expense')" id="plus-mode-expense" class="py-1.5 rounded-lg text-xs font-semibold bg-[#2B1917] text-[#EF4444] transition-all">Expense</button>
+          <button type="button" onclick="setPlusMode('transfer')" id="plus-mode-transfer" class="py-1.5 rounded-lg text-xs font-medium text-[#7B9387] hover:text-white transition-all">Transfer</button>
+        </div>
+        <button type="button" onclick="closeAllOverlays()" class="p-2 rounded-xl bg-[#1E2E26] text-[#8CA397] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Amount Display + Discreet '+ Note' Pill + Quick-Add Chips -->
+      <div class="bg-[#0E1713] border border-[#23352C] rounded-2xl px-3.5 py-2.5 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span id="plus-context-label" class="text-xs font-medium text-[#7B9387] truncate">From Mobile · Food</span>
+            <button type="button" onclick="togglePlusNote()" id="plus-note-btn" class="shrink-0 px-2 py-0.5 rounded-lg bg-[#16221C] hover:bg-[#1E2E26] border border-[#23352C] text-[10px] font-semibold text-[#8CA397] hover:text-white transition-colors">
+              + Note
+            </button>
+          </div>
+          <div id="plus-amount-display" class="text-2xl font-bold font-mono text-white shrink-0">0</div>
+        </div>
+
+        <!-- Quick-Add Amount Chips (+50, +100, +500) -->
+        <div class="flex items-center justify-end gap-1.5">
+          <button type="button" onclick="bumpPlusAmount(50)" class="px-2 py-0.5 rounded-lg bg-[#16221C] hover:bg-[#1E2E26] border border-[#23352C] text-[10px] font-mono font-semibold text-[#8CA397] hover:text-white">+50</button>
+          <button type="button" onclick="bumpPlusAmount(100)" class="px-2 py-0.5 rounded-lg bg-[#16221C] hover:bg-[#1E2E26] border border-[#23352C] text-[10px] font-mono font-semibold text-[#8CA397] hover:text-white">+100</button>
+          <button type="button" onclick="bumpPlusAmount(500)" class="px-2 py-0.5 rounded-lg bg-[#16221C] hover:bg-[#1E2E26] border border-[#23352C] text-[10px] font-mono font-semibold text-[#8CA397] hover:text-white">+500</button>
+        </div>
+
+        <!-- Hidden 1-Line Note Input (Expands ONLY when '+ Note' is tapped) -->
+        <input id="plus-note-input" type="text" placeholder="Short note (few words)..." class="hidden w-full bg-[#16221C] border border-[#23352C] rounded-xl px-3 py-1.5 text-xs text-white placeholder-[#4B6357] focus:outline-none focus:border-[#22C55E]/50" />
+      </div>
+
+      <!-- Case 1: EXPENSE (Row 1 = Wallet Chips, Row 2 = Category Chips + '+ Custom') -->
+      <div id="plus-expense-rows" class="space-y-2">
+        <div class="grid grid-cols-3 gap-1.5">
+          <button type="button" onclick="selectPlusExpWallet('bank')" id="p-ewal-bank" class="py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]">Bank</button>
+          <button type="button" onclick="selectPlusExpWallet('mobile')" id="p-ewal-mobile" class="py-1.5 rounded-xl text-xs font-semibold bg-[#1E2E26] border border-[#22C55E]/50 text-white">Mobile</button>
+          <button type="button" onclick="selectPlusExpWallet('cash')" id="p-ewal-cash" class="py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]">Cash</button>
+        </div>
+        <div id="plus-cat-row" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+        <div id="plus-custom-cat-box" class="hidden flex items-center gap-1.5 bg-[#0E1713] p-1.5 rounded-xl border border-[#22C55E]/40">
+          <input id="plus-new-cat-inp" type="text" placeholder="New category name..." class="flex-1 bg-transparent px-2 text-xs text-white placeholder-[#4B6357] focus:outline-none" />
+          <button type="button" onclick="savePlusCustomCategory()" class="px-2.5 py-1 rounded-lg bg-[#22C55E] text-[#09120E] text-[11px] font-bold">Add</button>
+          <button type="button" onclick="togglePlusCustomCat(false)" class="px-2 py-1 text-[11px] text-[#7B9387]">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Case 2: TRANSFER (Row 1 = From Wallet Chips, Row 2 = To Wallet Chips) -->
+      <div id="plus-transfer-rows" class="hidden space-y-2">
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-[#7B9387] w-9">From</span>
+          <div class="grid grid-cols-3 gap-1.5 flex-1">
+            <button type="button" onclick="selectPlusTrfFrom('bank')" id="p-from-bank" class="py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]">Bank</button>
+            <button type="button" onclick="selectPlusTrfFrom('mobile')" id="p-from-mobile" class="py-1.5 rounded-xl text-xs font-semibold bg-[#1B2D38] border border-sky-400/50 text-white">Mobile</button>
+            <button type="button" onclick="selectPlusTrfFrom('cash')" id="p-from-cash" class="py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]">Cash</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-[#7B9387] w-9">To</span>
+          <div class="grid grid-cols-3 gap-1.5 flex-1">
+            <button type="button" onclick="selectPlusTrfTo('bank')" id="p-to-bank" class="py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]">Bank</button>
+            <button type="button" onclick="selectPlusTrfTo('mobile')" id="p-to-mobile" class="py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#465E52] opacity-40">Mobile</button>
+            <button type="button" onclick="selectPlusTrfTo('cash')" id="p-to-cash" class="py-1.5 rounded-xl text-xs font-semibold bg-[#1E2E26] border border-[#22C55E]/50 text-white">Cash</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tactile Custom Numpad (0-9, Clear, Backspace) -->
+      <div class="grid grid-cols-3 gap-1.5 font-mono text-base font-semibold">
+        <button type="button" onclick="pressPlusKey('1')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">1</button>
+        <button type="button" onclick="pressPlusKey('2')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">2</button>
+        <button type="button" onclick="pressPlusKey('3')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">3</button>
+        <button type="button" onclick="pressPlusKey('4')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">4</button>
+        <button type="button" onclick="pressPlusKey('5')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">5</button>
+        <button type="button" onclick="pressPlusKey('6')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">6</button>
+        <button type="button" onclick="pressPlusKey('7')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">7</button>
+        <button type="button" onclick="pressPlusKey('8')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">8</button>
+        <button type="button" onclick="pressPlusKey('9')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">9</button>
+        <button type="button" onclick="pressPlusKey('CLR')" class="py-2 rounded-xl bg-[#16221C] text-xs font-sans text-[#8CA397] hover:text-white active:scale-95 transition">Clear</button>
+        <button type="button" onclick="pressPlusKey('0')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">0</button>
+        <button type="button" onclick="pressPlusKey('DEL')" class="py-2 rounded-xl bg-[#16221C] text-[#8CA397] hover:text-white flex items-center justify-center active:scale-95 transition">
+          <i data-lucide="delete" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <button type="button" onclick="submitQuickPlus()" id="plus-submit-btn" class="w-full py-3 rounded-xl bg-[#EF4444] hover:opacity-95 active:scale-[0.99] text-white font-bold text-xs tracking-wide transition-all shadow-lg">
+        Save Expense
+      </button>
+    </div>
+
+    <!-- ==================== SHEET 2: HOME DUE DETAIL & SETTLE DRAWER ==================== -->
+    <div id="sheet-home-due" class="sheet-drawer closed absolute inset-x-0 bottom-0 z-30 bg-[#14201A] border-t border-[#283C32] rounded-t-3xl p-5 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span id="hdue-badge" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#2B2210] text-[#F59E0B]">PAYABLE</span>
+            <span id="hdue-rec-pill" class="hidden text-[10px] font-semibold px-2 py-0.5 rounded bg-[#1E2E26] text-[#22C55E]">Monthly</span>
+          </div>
+          <h3 id="hdue-title" class="text-base font-bold text-white mt-1.5">Title</h3>
+        </div>
+        <button type="button" onclick="closeAllOverlays()" class="p-1.5 rounded-xl bg-[#1E2E26] text-[#8CA397] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="bg-[#0E1713] border border-[#23352C] rounded-2xl p-3.5 space-y-2.5 text-xs">
+        <div class="flex justify-between items-center">
+          <span class="text-[#7B9387]">Amount</span>
+          <span id="hdue-amount" class="font-mono font-bold text-white text-base">0</span>
+        </div>
+        <div class="flex justify-between items-center border-t border-[#1B2B23] pt-2">
+          <span class="text-[#7B9387]">Due Date</span>
+          <span id="hdue-date" class="font-medium text-white">Not set</span>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <span id="hdue-wallet-prompt" class="text-[11px] font-medium text-[#7B9387] block">Complete using wallet:</span>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="settleActiveHomeDue('bank')" class="py-2.5 rounded-xl bg-[#1E2E26] hover:bg-[#22C55E] hover:text-[#09120E] text-xs font-semibold text-white transition-colors">Bank</button>
+          <button type="button" onclick="settleActiveHomeDue('mobile')" class="py-2.5 rounded-xl bg-[#1E2E26] hover:bg-[#22C55E] hover:text-[#09120E] text-xs font-semibold text-white transition-colors">Mobile</button>
+          <button type="button" onclick="settleActiveHomeDue('cash')" class="py-2.5 rounded-xl bg-[#1E2E26] hover:bg-[#22C55E] hover:text-[#09120E] text-xs font-semibold text-white transition-colors">Cash</button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button type="button" onclick="settleActiveHomeDue('none')" class="py-2 rounded-xl bg-[#0E1713] border border-[#23352C] hover:border-[#3B594B] text-[11px] font-medium text-[#8CA397] hover:text-white transition-colors">
+            No wallet change
+          </button>
+          <button type="button" onclick="deleteActiveHomeDue()" class="py-2 rounded-xl bg-[#2B1917] hover:bg-[#3A211E] border border-[#4A2925] text-[11px] font-semibold text-[#EF4444] transition-colors">
+            Delete Due
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SHEET 3: TILE 1 — ADD INCOME POPUP ==================== -->
+    <div id="sheet-add-income" class="sheet-drawer closed absolute inset-x-0 bottom-0 z-30 bg-[#14201A] border-t border-[#283C32] rounded-t-3xl p-4 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-[#22C55E]">Add Income</span>
+        <button type="button" onclick="closeAllOverlays()" class="p-1.5 rounded-xl bg-[#1E2E26] text-[#8CA397] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="bg-[#0E1713] border border-[#23352C] rounded-2xl px-4 py-2.5 flex items-center justify-between">
+        <span id="inc-sheet-context" class="text-xs text-[#7B9387]">Into Bank · Salary</span>
+        <div id="inc-sheet-display" class="text-2xl font-bold font-mono text-white">0</div>
+      </div>
+
+      <!-- Wallet Chips -->
+      <div class="grid grid-cols-3 gap-1.5">
+        <button type="button" onclick="selectIncSheetWallet('bank')" id="is-wal-bank" class="py-1.5 rounded-xl text-xs font-semibold bg-[#1E2E26] border border-[#22C55E]/50 text-white">Bank</button>
+        <button type="button" onclick="selectIncSheetWallet('mobile')" id="is-wal-mobile" class="py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]">Mobile</button>
+        <button type="button" onclick="selectIncSheetWallet('cash')" id="is-wal-cash" class="py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]">Cash</button>
+      </div>
+
+      <!-- Source Chips + '+ Custom' -->
+      <div class="space-y-1.5">
+        <div id="inc-sheet-sources" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5"></div>
+        <div id="inc-custom-source-box" class="hidden flex items-center gap-1.5 bg-[#0E1713] p-1.5 rounded-xl border border-[#22C55E]/40">
+          <input id="inc-new-source-inp" type="text" placeholder="New source name..." class="flex-1 bg-transparent px-2 text-xs text-white placeholder-[#4B6357] focus:outline-none" />
+          <button type="button" onclick="saveIncCustomSource()" class="px-2.5 py-1 rounded-lg bg-[#22C55E] text-[#09120E] text-[11px] font-bold">Add</button>
+          <button type="button" onclick="toggleIncCustomSource(false)" class="px-2 py-1 text-[11px] text-[#7B9387]">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Numpad -->
+      <div class="grid grid-cols-3 gap-1.5 font-mono text-base font-semibold">
+        <button type="button" onclick="pressIncKey('1')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">1</button>
+        <button type="button" onclick="pressIncKey('2')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">2</button>
+        <button type="button" onclick="pressIncKey('3')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">3</button>
+        <button type="button" onclick="pressIncKey('4')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">4</button>
+        <button type="button" onclick="pressIncKey('5')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">5</button>
+        <button type="button" onclick="pressIncKey('6')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">6</button>
+        <button type="button" onclick="pressIncKey('7')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">7</button>
+        <button type="button" onclick="pressIncKey('8')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">8</button>
+        <button type="button" onclick="pressIncKey('9')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">9</button>
+        <button type="button" onclick="pressIncKey('CLR')" class="py-2 rounded-xl bg-[#16221C] text-xs font-sans text-[#8CA397] active:scale-95 transition">Clear</button>
+        <button type="button" onclick="pressIncKey('0')" class="py-2 rounded-xl bg-[#1A2821] hover:bg-[#22342B] text-white active:scale-95 transition">0</button>
+        <button type="button" onclick="pressIncKey('DEL')" class="py-2 rounded-xl bg-[#16221C] text-[#8CA397] flex items-center justify-center active:scale-95 transition">
+          <i data-lucide="delete" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <button type="button" onclick="submitAddIncome()" class="w-full py-3 rounded-xl bg-[#22C55E] hover:opacity-95 text-[#09120E] font-bold text-xs tracking-wide shadow-lg">
+        Save Income
+      </button>
+    </div>
+
+    <!-- ==================== SHEET 4: TILE 2 — ADD RECEIVABLE / PAYABLE POPUP ==================== -->
+    <div id="sheet-add-due" class="sheet-drawer closed absolute inset-x-0 bottom-0 z-30 bg-[#14201A] border-t border-[#283C32] rounded-t-3xl p-5 shadow-2xl space-y-3.5">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-white">New Receivable / Payable</span>
+        <button type="button" onclick="closeAllOverlays()" class="p-1.5 rounded-xl bg-[#1E2E26] text-[#8CA397] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Receivable | Payable Toggle -->
+      <div class="grid grid-cols-2 gap-1 bg-[#0E1713] p-1 rounded-xl border border-[#23352C]">
+        <button type="button" onclick="setNewDueType('receivable')" id="nd-type-receivable" class="py-2 rounded-lg text-xs font-semibold bg-[#132A1E] text-[#22C55E] transition-all">Receivable</button>
+        <button type="button" onclick="setNewDueType('payable')" id="nd-type-payable" class="py-2 rounded-lg text-xs font-medium text-[#7B9387] hover:text-white transition-all">Payable</button>
+      </div>
+
+      <div class="space-y-2.5">
+        <input id="nd-title-inp" type="text" placeholder="Person / Title" class="w-full bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#4B6357] focus:outline-none focus:border-[#22C55E]/60" />
+        <div class="grid grid-cols-2 gap-2.5">
+          <input id="nd-amount-inp" type="number" step="any" placeholder="Amount" class="bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-white placeholder-[#4B6357] focus:outline-none focus:border-[#22C55E]/60" />
+          <input id="nd-date-inp" type="date" class="bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#22C55E]/60" />
+        </div>
+      </div>
+
+      <!-- Recurring Toggle Switch ("Repeat monthly (auto-adds next month)") -->
+      <label class="flex items-center justify-between bg-[#0E1713] border border-[#23352C] rounded-2xl px-3.5 py-3 cursor-pointer">
+        <div>
+          <div class="text-xs font-semibold text-white">Repeat monthly</div>
+          <div class="text-[10px] text-[#7B9387]">Auto-adds next month</div>
+        </div>
+        <div class="relative inline-flex items-center">
+          <input id="nd-recurring-toggle" type="checkbox" class="sr-only peer" />
+          <div class="w-10 h-5 bg-[#23352C] rounded-full peer peer-checked:bg-[#22C55E] transition-colors"></div>
+          <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+        </div>
+      </label>
+
+      <button type="button" onclick="submitNewDue()" id="nd-submit-btn" class="w-full py-3 rounded-xl bg-[#22C55E] hover:opacity-95 text-[#09120E] font-bold text-xs tracking-wide shadow-lg">
+        Save Receivable
+      </button>
+    </div>
+
+    <!-- ==================== SHEET 5: TILES 3 & 4 — COMPLETE RECEIVABLE / PAYABLE POPUP ==================== -->
+    <div id="sheet-complete-dues" class="sheet-drawer closed absolute inset-x-0 bottom-0 z-30 bg-[#14201A] border-t border-[#283C32] rounded-t-3xl p-5 shadow-2xl space-y-3.5 max-h-[78%] flex flex-col">
+      <div class="flex items-center justify-between shrink-0">
+        <span id="comp-sheet-title" class="text-xs font-bold uppercase tracking-wider text-[#22C55E]">Complete Receivable</span>
+        <button type="button" onclick="closeAllOverlays()" class="p-1.5 rounded-xl bg-[#1E2E26] text-[#8CA397] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div id="comp-sheet-list" class="flex-1 overflow-y-auto app-scroll space-y-2.5 pr-0.5">
+        <!-- Populated dynamically with icon-only checkmark buttons & inline wallet choice -->
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 1: EDIT / DELETE HISTORY TRANSACTION ==================== -->
+    <div id="modal-edit-tx" class="modal-box closed absolute inset-x-4 top-1/2 -translate-y-1/2 z-40 bg-[#14201A] border border-[#283C32] rounded-3xl p-5 shadow-2xl space-y-3.5">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-white">Edit Transaction</span>
+        <button type="button" onclick="closeAllOverlays()" class="p-1.5 rounded-xl bg-[#1E2E26] text-[#8CA397] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Type</label>
+            <select id="etx-type" onchange="handleEditTxTypeChange()" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs text-white">
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+              <option value="transfer">Transfer</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Amount</label>
+            <input id="etx-amount" type="number" step="any" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs font-mono font-bold text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label id="etx-wallet-lbl" class="text-[10px] font-semibold uppercase text-[#7B9387]">Wallet</label>
+            <select id="etx-wallet" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs text-white">
+              <option value="bank">Bank</option>
+              <option value="mobile">Mobile</option>
+              <option value="cash">Cash</option>
+              <option value="none">No Wallet</option>
+            </select>
+          </div>
+          <div id="etx-towallet-wrap" class="hidden">
+            <label class="text-[10px] font-semibold uppercase text-[#7B9387]">To Wallet</label>
+            <select id="etx-towallet" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs text-white">
+              <option value="bank">Bank</option>
+              <option value="mobile">Mobile</option>
+              <option value="cash">Cash</option>
+            </select>
+          </div>
+          <div id="etx-cat-wrap">
+            <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Category / Source</label>
+            <input id="etx-category" type="text" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Date</label>
+            <input id="etx-date" type="date" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs text-white" />
+          </div>
+          <div>
+            <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Note</label>
+            <input id="etx-note" type="text" placeholder="Optional note" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3 py-2 text-xs text-white" />
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <button type="button" onclick="deleteEditedTx()" class="py-2.5 rounded-xl bg-[#2B1917] hover:bg-[#3A211E] border border-[#4A2925] text-xs font-semibold text-[#EF4444]">
+          Delete
+        </button>
+        <button type="button" onclick="saveEditedTx()" class="py-2.5 rounded-xl bg-[#22C55E] text-[#09120E] text-xs font-bold">
+          Save Changes
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 2: ADD / EDIT DEBT (LOAN TAKEN) ==================== -->
+    <div id="modal-debt-form" class="modal-box closed absolute inset-x-4 top-1/2 -translate-y-1/2 z-40 bg-[#14201A] border border-[#283C32] rounded-3xl p-5 shadow-2xl space-y-3.5">
+      <div class="flex items-center justify-between">
+        <span id="debt-modal-title" class="text-xs font-bold uppercase tracking-wider text-[#F59E0B]">Add Debt / Loan</span>
+        <button type="button" onclick="closeAllOverlays()" class="p-1.5 rounded-xl bg-[#1E2E26] text-[#8CA397] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5">
+        <div>
+          <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Lender / Title</label>
+          <input id="debt-f-lender" type="text" placeholder="e.g., Bank Personal Loan, Brother" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#4B6357] focus:outline-none focus:border-[#F59E0B]" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Loan Amount</label>
+            <input id="debt-f-total" type="number" step="any" placeholder="0" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-white placeholder-[#4B6357] focus:outline-none focus:border-[#F59E0B]" />
+          </div>
+          <div id="debt-f-paid-wrap" class="hidden">
+            <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Already Paid</label>
+            <input id="debt-f-paid" type="number" step="any" placeholder="0" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-white" />
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Optional Note</label>
+          <input id="debt-f-note" type="text" placeholder="Terms or memo..." class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#4B6357] focus:outline-none focus:border-[#F59E0B]" />
+        </div>
+      </div>
+
+      <div id="debt-modal-actions" class="pt-1">
+        <button type="button" onclick="saveDebtForm()" class="w-full py-3 rounded-xl bg-[#F59E0B] text-[#09120E] font-bold text-xs tracking-wide">
+          Save Debt
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 3: SET / EDIT BUDGET LIMIT ==================== -->
+    <div id="modal-budget-limit" class="modal-box closed absolute inset-x-4 top-1/2 -translate-y-1/2 z-40 bg-[#14201A] border border-[#283C32] rounded-3xl p-5 shadow-2xl space-y-3.5">
+      <div class="flex items-center justify-between">
+        <span id="bud-modal-title" class="text-xs font-bold uppercase tracking-wider text-[#22C55E]">Set Category Limit</span>
+        <button type="button" onclick="closeAllOverlays()" class="p-1.5 rounded-xl bg-[#1E2E26] text-[#8CA397] hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5">
+        <div>
+          <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Category</label>
+          <select id="bud-m-cat" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2.5 text-xs font-medium text-white"></select>
+        </div>
+        <div>
+          <label class="text-[10px] font-semibold uppercase text-[#7B9387]">Monthly Limit</label>
+          <input id="bud-m-limit" type="number" step="any" placeholder="0" class="w-full mt-1 bg-[#0E1713] border border-[#23352C] rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold text-white" />
+        </div>
+      </div>
+
+      <div id="bud-m-btns" class="grid grid-cols-2 gap-2.5 pt-1">
+        <button type="button" id="bud-m-remove" onclick="removeBudgetLimitFromModal()" class="py-2.5 rounded-xl bg-[#2B1917] text-[#EF4444] text-xs font-semibold">
+          Remove Limit
+        </button>
+        <button type="button" onclick="saveBudgetLimitFromModal()" class="py-2.5 rounded-xl bg-[#22C55E] text-[#09120E] text-xs font-bold">
+          Save Limit
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== MODAL 4: CUSTOM CONFIRMATION DIALOG ==================== -->
+    <div id="modal-confirm" class="modal-box closed absolute inset-x-5 top-1/2 -translate-y-1/2 z-40 bg-[#14201A] border border-[#283C32] rounded-3xl p-5 shadow-2xl space-y-4">
+      <div class="space-y-1.5">
+        <h3 id="conf-title" class="text-sm font-bold text-white">Confirm Action</h3>
+        <p id="conf-desc" class="text-xs text-[#8CA397] leading-relaxed">Are you sure?</p>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5">
+        <button type="button" onclick="closeAllOverlays()" class="py-2.5 rounded-xl bg-[#1E2E26] hover:bg-[#263A30] text-xs font-semibold text-white">
+          Cancel
+        </button>
+        <button type="button" id="conf-confirm-btn" class="py-2.5 rounded-xl bg-[#EF4444] text-white text-xs font-bold">
+          Confirm
+        </button>
+      </div>
+    </div>
+
+    <!-- ==================== BOTTOM NAVIGATION BAR (4 TABS + CENTER '+') ==================== -->
+    <nav class="absolute bottom-0 inset-x-0 h-16 bg-[#0E1713]/95 backdrop-blur border-t border-[#1D2B24] grid grid-cols-5 items-center px-1.5 z-10">
+      <button type="button" onclick="switchMainTab('home')" id="nav-home" class="flex flex-col items-center gap-1 text-white">
+        <i data-lucide="layout-grid" class="w-4 h-4 text-[#22C55E]"></i>
+        <span class="text-[10px] font-semibold">Home</span>
+      </button>
+      <button type="button" onclick="switchMainTab('records')" id="nav-records" class="flex flex-col items-center gap-1 text-[#7B9387] hover:text-white">
+        <i data-lucide="file-text" class="w-4 h-4"></i>
+        <span class="text-[10px] font-medium">Records</span>
+      </button>
+
+      <!-- Center Elevated '+' Trigger -->
+      <div class="flex justify-center">
+        <button type="button" onclick="openQuickPlusSheet()" aria-label="Quick Expense or Transfer" class="w-12 h-12 -mt-5 rounded-2xl bg-[#22C55E] hover:bg-[#16A34A] text-[#09120E] shadow-lg shadow-[#22C55E]/25 flex items-center justify-center active:scale-95 transition">
+          <i data-lucide="plus" class="w-6 h-6 stroke-[2.5]"></i>
+        </button>
+      </div>
+
+      <button type="button" onclick="switchMainTab('budget')" id="nav-budget" class="flex flex-col items-center gap-1 text-[#7B9387] hover:text-white">
+        <i data-lucide="pie-chart" class="w-4 h-4"></i>
+        <span class="text-[10px] font-medium">Budget</span>
+      </button>
+      <button type="button" onclick="switchMainTab('settings')" id="nav-settings" class="flex flex-col items-center gap-1 text-[#7B9387] hover:text-white">
+        <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+        <span class="text-[10px] font-medium">Settings</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'finledger_app_v1';
+    const MONTH_NAMES = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const CATEGORY_ICONS = {
+      Food: 'utensils',
+      Transport: 'car',
+      Bills: 'zap',
+      Shopping: 'shopping-bag',
+      Other: 'tag'
+    };
+
+    // ==================== DATE & MONTH HELPERS ====================
+    function getTodayISO() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function getCurrentMonthKey() {
+      return getTodayISO().slice(0, 7);
+    }
+
+    function formatMonthLabel(monthKey) {
+      const [y, m] = monthKey.split('-').map(Number);
+      return `${MONTH_NAMES[m - 1]} ${y}`;
+    }
+
+    function addMonthsToKey(monthKey, delta) {
+      const [y, m] = monthKey.split('-').map(Number);
+      const date = new Date(y, m - 1 + delta, 1);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function shiftDateByOneMonth(isoDate) {
+      if (!isoDate) return '';
+      const [y, m, d] = isoDate.split('-').map(Number);
+      const targetMonth = new Date(y, m, 1);
+      const maxDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate();
+      const clampedDay = Math.min(d, maxDay);
+      return `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
+    }
+
+    function formatHumanDate(isoDate) {
+      if (!isoDate) return '';
+      const today = getTodayISO();
+      if (isoDate === today) return 'Today';
+      const [y, m, d] = isoDate.split('-').map(Number);
+      return `${MONTH_NAMES[m - 1].slice(0, 3)} ${d}, ${y}`;
+    }
+
+    // ==================== STATE INITIALIZATION & PERSISTENCE ====================
+    function createDefaultState() {
+      const mk = getCurrentMonthKey();
+      const today = getTodayISO();
+      return {
+        currency: '৳',
+        wallets: { bank: 0, mobile: 5000, cash: 3000 },
+        categories: ['Food', 'Transport', 'Bills', 'Shopping', 'Other'],
+        incomeSources: ['Salary', 'Client', 'Freelance', 'Refund'],
+        budgets: {
+          Food: 8000,
+          Transport: 3000,
+          Bills: 5000
+        },
+        transactions: [
+          {
+            id: 'tx_1',
+            type: 'expense',
+            amount: 350,
+            wallet: 'cash',
+            toWallet: null,
+            category: 'Food',
+            note: 'Lunch',
+            date: today,
+            monthKey: mk,
+            originDueDate: null,
+            debtId: null
+          },
+          {
+            id: 'tx_2',
+            type: 'income',
+            amount: 5000,
+            wallet: 'mobile',
+            toWallet: null,
+            category: 'Client',
+            note: '',
+            date: today,
+            monthKey: mk,
+            originDueDate: null,
+            debtId: null
+          }
+        ],
+        dues: [
+          {
+            id: 'due_1',
+            type: 'payable',
+            title: 'House Rent Share',
+            amount: 4000,
+            dueDate: `${mk}-25`,
+            recurring: true,
+            settled: false,
+            settledMonthKey: null,
+            monthKey: mk,
+            recurringSpawned: false
+          },
+          {
+            id: 'due_2',
+            type: 'receivable',
+            title: 'Client Project Milestone',
+            amount: 1500,
+            dueDate: `${mk}-24`,
+            recurring: false,
+            settled: false,
+            settledMonthKey: null,
+            monthKey: mk,
+            recurringSpawned: false
+          }
+        ],
+        debts: [
+          {
+            id: 'debt_1',
+            lender: 'Brother (Gear Advance)',
+            totalAmount: 10000,
+            paidAmount: 2500,
+            note: 'Flexible monthly installments',
+            createdAt: today
+          }
+        ]
+      };
+    }
+
+    let state = loadState();
+    let selectedMonthKey = getCurrentMonthKey();
+    let activeMainTab = 'home';
+    let activeRecordsSubTab = 'add';
+    let historyFilter = 'all';
+
+    // Interactive Sheet & Modal States
+    let plusMode = 'expense';
+    let plusAmountStr = '0';
+    let plusExpWallet = 'mobile';
+    let plusExpCategory = 'Food';
+    let plusTrfFrom = 'mobile';
+    let plusTrfTo = 'cash';
+
+    let incSheetAmountStr = '0';
+    let incSheetWallet = 'bank';
+    let incSheetSource = 'Salary';
+
+    let newDueType = 'receivable';
+    let activeHomeDueId = null;
+    let completeSheetMode = 'receivable';
+    let expandedCompleteDueId = null;
+
+    let editingTxId = null;
+    let editingDebtId = null;
+    let payingDebtId = null;
+    let editingBudgetCat = null;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          const fresh = createDefaultState();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh));
+          return fresh;
+        }
+        const parsed = JSON.parse(raw);
+        return {
+          currency: parsed.currency !== undefined ? parsed.currency : '৳',
+          wallets: parsed.wallets || { bank: 0, mobile: 0, cash: 0 },
+          categories: Array.isArray(parsed.categories) && parsed.categories.length ? parsed.categories : ['Food', 'Transport', 'Bills', 'Shopping', 'Other'],
+          incomeSources: Array.isArray(parsed.incomeSources) && parsed.incomeSources.length ? parsed.incomeSources : ['Salary', 'Client', 'Freelance', 'Refund'],
+          budgets: parsed.budgets || {},
+          transactions: Array.isArray(parsed.transactions) ? parsed.transactions : [],
+          dues: Array.isArray(parsed.dues) ? parsed.dues : [],
+          debts: Array.isArray(parsed.debts) ? parsed.debts : []
+        };
+      } catch (e) {
+        return createDefaultState();
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        showToast('Storage quota warning', true);
+      }
+    }
+
+    function fmt(num) {
+      const prefix = state.currency || '';
+      const val = Number(num) || 0;
+      return prefix + val.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+
+    function cap(str) {
+      return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+    }
+
+    function showToast(msg, isError = false) {
+      const banner = document.getElementById('toast-banner');
+      const txt = document.getElementById('toast-text');
+      const icon = document.getElementById('toast-icon');
+      txt.textContent = msg;
+      banner.style.borderColor = isError ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.5)';
+      icon.setAttribute('data-lucide', isError ? 'alert-circle' : 'check-circle-2');
+      icon.className = `w-4 h-4 shrink-0 ${isError ? 'text-[#EF4444]' : 'text-[#22C55E]'}`;
+      banner.classList.remove('hidden');
+      lucide.createIcons({ root: banner });
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => banner.classList.add('hidden'), 2500);
+    }
+
+    // ==================== RECURRING DUES AUTO-GENERATION ====================
+    function spawnNextMonthRecurringDue(due) {
+      if (!due.recurring || due.recurringSpawned) return;
+      const nextMonth = addMonthsToKey(due.monthKey, 1);
+      const alreadyExists = state.dues.some(
+        d => d.monthKey === nextMonth && d.type === due.type && d.title.toLowerCase() === due.title.toLowerCase()
+      );
+      due.recurringSpawned = true;
+      if (!alreadyExists) {
+        state.dues.push({
+          id: 'due_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          type: due.type,
+          title: due.title,
+          amount: due.amount,
+          dueDate: shiftDateByOneMonth(due.dueDate),
+          recurring: true,
+          settled: false,
+          settledMonthKey: null,
+          monthKey: nextMonth,
+          recurringSpawned: false
+        });
+      }
+    }
+
+    function ensureRecurringDuesForMonth(targetMonthKey) {
+      const prevMonthKey = addMonthsToKey(targetMonthKey, -1);
+      const prevRecurring = state.dues.filter(d => d.monthKey === prevMonthKey && d.recurring && !d.recurringSpawned);
+      let spawned = false;
+      prevRecurring.forEach(d => {
+        spawnNextMonthRecurringDue(d);
+        spawned = true;
+      });
+      if (spawned) saveState();
+    }
+
+    function shiftMonth(delta) {
+      selectedMonthKey = addMonthsToKey(selectedMonthKey, delta);
+      if (delta > 0) {
+        ensureRecurringDuesForMonth(selectedMonthKey);
+      }
+      renderAll();
+    }
+
+    // ==================== NAVIGATION ====================
+    function switchMainTab(tab) {
+      closeAllOverlays();
+      activeMainTab = tab;
+      document.querySelectorAll('.main-tab').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+
+      ['home', 'records', 'budget', 'settings'].forEach(id => {
+        const btn = document.getElementById(`nav-${id}`);
+        const svg = btn.querySelector('svg');
+        const lbl = btn.querySelector('span');
+        if (id === tab) {
+          btn.classList.remove('text-[#7B9387]');
+          btn.classList.add('text-white');
+          if (svg) svg.classList.add('text-[#22C55E]');
+          if (lbl) lbl.classList.add('font-semibold');
+        } else {
+          btn.classList.add('text-[#7B9387]');
+          btn.classList.remove('text-white');
+          if (svg) svg.classList.remove('text-[#22C55E]');
+          if (lbl) lbl.classList.remove('font-semibold');
+        }
+      });
+
+      renderAll();
+    }
+
+    function setRecordsSubTab(sub) {
+      activeRecordsSubTab = sub;
+      ['add', 'history', 'debts'].forEach(id => {
+        document.getElementById(`records-view-${id}`).classList.toggle('hidden', id !== sub);
+        const btn = document.getElementById(`rec-sub-${id}`);
+        btn.className = id === sub
+          ? 'py-2 rounded-xl text-xs font-semibold bg-[#1E2E26] text-white transition-all'
+          : 'py-2 rounded-xl text-xs font-medium text-[#7B9387] hover:text-white transition-all';
+      });
+      renderRecords();
+      lucide.createIcons();
+    }
+
+    // ==================== MASTER RENDER ====================
+    function renderAll() {
+      const mLabel = formatMonthLabel(selectedMonthKey);
+      document.getElementById('universal-month-label').textContent = mLabel;
+      document.getElementById('budget-month-tag').textContent = mLabel;
+      document.getElementById('reset-month-subtext').textContent = `Clears history & dues for ${mLabel} only`;
+
+      renderHome();
+      renderRecords();
+      renderBudget();
+      renderSettings();
+      lucide.createIcons();
+    }
+
+    // ==================== RENDER TAB 1: HOME ====================
+    function renderHome() {
+      const { bank, mobile, cash } = state.wallets;
+      document.getElementById('home-bal-bank').textContent = fmt(bank);
+      document.getElementById('home-bal-mobile').textContent = fmt(mobile);
+      document.getElementById('home-bal-cash').textContent = fmt(cash);
+
+      // Active unsettled dues for selected month (or earlier unsettled dues)
+      const openDues = state.dues.filter(d => !d.settled && d.monthKey <= selectedMonthKey);
+      const sumRec = openDues.filter(d => d.type === 'receivable').reduce((s, d) => s + d.amount, 0);
+      const sumPay = openDues.filter(d => d.type === 'payable').reduce((s, d) => s + d.amount, 0);
+
+      // Net Balance = Wallets + Unsettled Receivables - Unsettled Payables
+      // Active debts/loans DO NOT directly reduce Net Balance while open
+      const netBalance = (bank + mobile + cash) + sumRec - sumPay;
+      document.getElementById('home-net-balance').textContent = fmt(netBalance);
+
+      const listEl = document.getElementById('home-dues-list');
+      if (!openDues.length) {
+        listEl.innerHTML = `
+          <div class="bg-[#16221C] border border-[#23352C]/60 rounded-2xl p-6 text-center text-xs text-[#7B9387]">
+            No upcoming payments or dues.
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = openDues.map(d => {
+        const isRec = d.type === 'receivable';
+        return `
+          <div onclick="openHomeDueDrawer('${d.id}')" class="cursor-pointer bg-[#16221C] hover:bg-[#1E2E26] border border-[#23352C]/80 rounded-2xl px-3.5 py-3 flex items-center justify-between gap-2 transition-colors">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0 ${isRec ? 'bg-[#22C55E]' : 'bg-[#F59E0B]'}"></span>
+              <span class="text-xs font-semibold text-white truncate">${escapeHtml(d.title)}</span>
+            </div>
+            <div class="flex items-center gap-2.5 shrink-0">
+              <span class="text-sm font-bold font-mono text-white">${fmt(d.amount)}</span>
+              <button type="button" onclick="event.stopPropagation(); openHomeDueDrawer('${d.id}')" aria-label="Complete Due" class="w-8 h-8 rounded-xl bg-[#1E2E26] hover:bg-[#22C55E] text-[#22C55E] hover:text-[#09120E] border border-[#2C4237] flex items-center justify-center transition-colors">
+                <i data-lucide="check" class="w-4 h-4 stroke-[2.5]"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==================== RENDER TAB 2: RECORDS ====================
+    function renderRecords() {
+      // Sub-Tab A: Add Tile Badges
+      const openRecCount = state.dues.filter(d => !d.settled && d.type === 'receivable').length;
+      const openPayCount = state.dues.filter(d => !d.settled && d.type === 'payable').length;
+      document.getElementById('tile-rec-badge').textContent = `${openRecCount} open`;
+      document.getElementById('tile-pay-badge').textContent = `${openPayCount} open`;
+
+      // Sub-Tab B: History (Driven by Universal Month Switcher + Type Filter Pills)
+      renderHistoryList();
+
+      // Sub-Tab C: Debts (Loans Taken)
+      renderDebtsList();
+    }
+
+    function setHistoryFilter(f) {
+      historyFilter = f;
+      ['all', 'expense', 'income', 'transfer'].forEach(k => {
+        document.getElementById(`hf-${k}`).className = k === f
+          ? 'py-1.5 rounded-xl text-[11px] font-semibold bg-[#1E2E26] text-white transition-all'
+          : 'py-1.5 rounded-xl text-[11px] font-medium text-[#7B9387] hover:text-white transition-all';
+      });
+      renderHistoryList();
+      lucide.createIcons();
+    }
+
+    function renderHistoryList() {
+      const container = document.getElementById('history-list-container');
+      const filtered = state.transactions
+        .filter(tx => tx.monthKey === selectedMonthKey && (historyFilter === 'all' || tx.type === historyFilter))
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="bg-[#16221C] border border-[#23352C] rounded-2xl p-6 text-center text-xs text-[#7B9387]">
+            No ${historyFilter === 'all' ? '' : historyFilter + ' '}transactions in ${formatMonthLabel(selectedMonthKey)}.
+          </div>`;
+        return;
+      }
+
+      // Group chronologically by date
+      const groups = [];
+      const groupMap = {};
+      filtered.forEach(tx => {
+        const label = formatHumanDate(tx.date);
+        if (!groupMap[label]) {
+          groupMap[label] = [];
+          groups.push({ label, items: groupMap[label] });
+        }
+        groupMap[label].push(tx);
+      });
+
+      container.innerHTML = groups.map(g => `
+        <div class="space-y-1.5">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-[#7B9387] px-1">${g.label}</div>
+          <div class="space-y-2">
+            ${g.items.map(tx => {
+              const isInc = tx.type === 'income';
+              const isTrf = tx.type === 'transfer';
+              const icon = isInc ? 'arrow-down-left' : isTrf ? 'arrow-left-right' : 'arrow-up-right';
+              const badgeCls = isInc
+                ? 'bg-[#22C55E]/15 text-[#22C55E]'
+                : isTrf
+                  ? 'bg-sky-500/15 text-sky-400'
+                  : 'bg-[#EF4444]/15 text-[#EF4444]';
+              const sign = isInc ? '+' : isTrf ? '' : '-';
+              const amtCls = isInc ? 'text-[#22C55E]' : isTrf ? 'text-sky-400' : 'text-white';
+              const walText = isTrf
+                ? `${cap(tx.wallet)} → ${cap(tx.toWallet)}`
+                : (tx.wallet === 'none' ? 'No Wallet' : cap(tx.wallet));
+
+              return `
+                <div data-tx-id="${tx.id}" class="tx-card-press bg-[#16221C] hover:bg-[#1E2E26] border border-[#23352C]/80 rounded-2xl px-3.5 py-3 flex items-center justify-between gap-2 relative">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-xl ${badgeCls} flex items-center justify-center shrink-0">
+                      <i data-lucide="${icon}" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-semibold text-white truncate">${escapeHtml(tx.category || cap(tx.type))}</span>
+                        ${tx.note ? `<span class="text-[10px] text-[#7B9387] truncate">· ${escapeHtml(tx.note)}</span>` : ''}
+                      </div>
+                      <div class="text-[10px] text-[#7B9387] mt-0.5">${walText}</div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 shrink-0">
+                    <span class="text-xs font-bold font-mono ${amtCls}">${sign}${fmt(tx.amount)}</span>
+                    <button type="button" onclick="event.stopPropagation(); openEditTxModal('${tx.id}')" aria-label="Edit Transaction" class="p-1.5 rounded-lg text-[#7B9387] hover:text-white hover:bg-[#0E1713] transition-colors">
+                      <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      attachLongPressHandlers();
+    }
+
+    function attachLongPressHandlers() {
+      document.querySelectorAll('[data-tx-id]').forEach(card => {
+        let pressTimer = null;
+        const txId = card.getAttribute('data-tx-id');
+
+        const startPress = () => {
+          pressTimer = setTimeout(() => {
+            openEditTxModal(txId);
+          }, 520);
+        };
+        const cancelPress = () => clearTimeout(pressTimer);
+
+        card.addEventListener('touchstart', startPress, { passive: true });
+        card.addEventListener('touchend', cancelPress);
+        card.addEventListener('touchmove', cancelPress);
+        card.addEventListener('mousedown', startPress);
+        card.addEventListener('mouseup', cancelPress);
+        card.addEventListener('mouseleave', cancelPress);
+      });
+    }
+
+    function renderDebtsList() {
+      const container = document.getElementById('debts-list-container');
+      if (!state.debts.length) {
+        container.innerHTML = `
+          <div class="bg-[#16221C] border border-[#23352C] rounded-2xl p-6 text-center text-xs text-[#7B9387]">
+            No active debts or loans. Tap <strong class="text-white">+</strong> below to record a loan.
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = state.debts.map(d => {
+        const rem = Math.max(0, d.totalAmount - d.paidAmount);
+        const pct = d.totalAmount > 0 ? Math.min(100, Math.round((d.paidAmount / d.totalAmount) * 100)) : 0;
+        const isPaying = payingDebtId === d.id;
+
+        return `
+          <div class="bg-[#16221C] border border-[#23352C] rounded-2xl p-3.5 space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-white truncate">${escapeHtml(d.lender)}</div>
+                <div class="text-[11px] font-mono text-[#7B9387] mt-0.5">
+                  Paid ${fmt(d.paidAmount)} / ${fmt(d.totalAmount)}
+                </div>
+                ${d.note ? `<div class="text-[10px] text-[#7B9387] mt-0.5 truncate">${escapeHtml(d.note)}</div>` : ''}
+              </div>
+
+              <div class="flex items-center gap-1.5 shrink-0">
+                <div class="text-right mr-1">
+                  <div class="text-[9px] uppercase tracking-wider text-[#7B9387]">Remaining</div>
+                  <div class="text-xs font-bold font-mono ${rem === 0 ? 'text-[#22C55E]' : 'text-[#F59E0B]'}">${fmt(rem)}</div>
+                </div>
+                ${rem > 0 ? `
+                  <button type="button" onclick="toggleDebtPayBox('${d.id}')" aria-label="Make Repayment" class="w-8 h-8 rounded-xl bg-[#1E2E26] hover:bg-[#22C55E] text-[#22C55E] hover:text-[#09120E] border border-[#2C4237] flex items-center justify-center transition-colors">
+                    <i data-lucide="banknote" class="w-4 h-4"></i>
+                  </button>
+                ` : `
+                  <div class="w-8 h-8 rounded-xl bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center">
+                    <i data-lucide="check-check" class="w-4 h-4"></i>
+                  </div>
+                `}
+                <button type="button" onclick="openEditDebtModal('${d.id}')" aria-label="Edit Debt" class="p-1.5 rounded-lg text-[#7B9387] hover:text-white">
+                  <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Paid / Total Progress Bar -->
+            <div class="w-full h-1.5 rounded-full bg-[#0E1713] overflow-hidden">
+              <div class="h-full rounded-full ${rem === 0 ? 'bg-[#22C55E]' : 'bg-[#F59E0B]'} transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+
+            <!-- Inline Partial/Full Repayment Picker -->
+            ${isPaying ? `
+              <div class="pt-2.5 border-t border-[#23352C] space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] font-semibold uppercase text-[#7B9387]">Repayment Amount</span>
+                  <input id="debt-pay-inp-${d.id}" type="number" step="any" value="${rem}" class="w-28 text-right bg-[#0E1713] border border-[#23352C] rounded-xl px-2.5 py-1 text-xs font-mono font-bold text-white focus:outline-none focus:border-[#22C55E]" />
+                </div>
+                <div class="grid grid-cols-3 gap-1.5">
+                  <button type="button" onclick="submitDebtRepayment('${d.id}', 'bank')" class="py-1.5 rounded-xl bg-[#0E1713] hover:bg-[#22C55E] hover:text-[#09120E] border border-[#23352C] text-[11px] font-semibold text-white transition-colors">Bank</button>
+                  <button type="button" onclick="submitDebtRepayment('${d.id}', 'mobile')" class="py-1.5 rounded-xl bg-[#0E1713] hover:bg-[#22C55E] hover:text-[#09120E] border border-[#23352C] text-[11px] font-semibold text-white transition-colors">Mobile</button>
+                  <button type="button" onclick="submitDebtRepayment('${d.id}', 'cash')" class="py-1.5 rounded-xl bg-[#0E1713] hover:bg-[#22C55E] hover:text-[#09120E] border border-[#23352C] text-[11px] font-semibold text-white transition-colors">Cash</button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==================== RENDER TAB 3: BUDGET ====================
+    function renderBudget() {
+      const monthExpenses = state.transactions.filter(tx => tx.type === 'expense' && tx.monthKey === selectedMonthKey);
+      const spentByCat = {};
+      monthExpenses.forEach(tx => {
+        spentByCat[tx.category] = (spentByCat[tx.category] || 0) + tx.amount;
+      });
+
+      const budgetEntries = Object.entries(state.budgets);
+      const totalLimit = budgetEntries.reduce((s, [, lim]) => s + lim, 0);
+      const totalSpent = budgetEntries.reduce((s, [cat]) => s + (spentByCat[cat] || 0), 0);
+      const remaining = totalLimit - totalSpent;
+      const pct = totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0;
+
+      const remEl = document.getElementById('budget-overall-remaining');
+      remEl.textContent = fmt(remaining);
+      remEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${remaining < 0 ? 'text-[#EF4444]' : 'text-white'}`;
+
+      document.getElementById('budget-overall-spent').textContent = fmt(totalSpent);
+      document.getElementById('budget-overall-limit').textContent = fmt(totalLimit);
+      document.getElementById('budget-overall-pct').textContent = `${pct}% used`;
+
+      const barEl = document.getElementById('budget-overall-bar');
+      const statusEl = document.getElementById('budget-overall-status');
+      barEl.style.width = `${Math.min(100, pct)}%`;
+
+      if (pct > 100) {
+        barEl.className = 'h-full rounded-full bg-[#EF4444] transition-all duration-300';
+        statusEl.textContent = 'Over budget';
+        statusEl.className = 'text-[#EF4444] font-semibold';
+      } else if (pct >= 80) {
+        barEl.className = 'h-full rounded-full bg-[#F59E0B] transition-all duration-300';
+        statusEl.textContent = 'Near limit';
+        statusEl.className = 'text-[#F59E0B] font-semibold';
+      } else {
+        barEl.className = 'h-full rounded-full bg-[#22C55E] transition-all duration-300';
+        statusEl.textContent = 'On track';
+        statusEl.className = 'text-[#22C55E] font-medium';
+      }
+
+      const listEl = document.getElementById('budget-categories-list');
+      if (!budgetEntries.length) {
+        listEl.innerHTML = `
+          <div class="bg-[#16221C] border border-[#23352C] rounded-2xl p-6 text-center text-xs text-[#7B9387]">
+            No category limits set yet. Tap <strong class="text-white">+ Set Limit</strong> above.
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = budgetEntries.map(([cat, limit]) => {
+        const spent = spentByCat[cat] || 0;
+        const catRem = limit - spent;
+        const catPct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+        const iconName = CATEGORY_ICONS[cat] || 'tag';
+
+        let barColor = 'bg-[#22C55E]';
+        let remColor = 'text-[#22C55E]';
+        if (catPct > 100) {
+          barColor = 'bg-[#EF4444]';
+          remColor = 'text-[#EF4444]';
+        } else if (catPct >= 80) {
+          barColor = 'bg-[#F59E0B]';
+          remColor = 'text-[#F59E0B]';
+        }
+
+        return `
+          <div class="bg-[#16221C] border border-[#23352C]/85 rounded-2xl p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 rounded-xl bg-[#0E1713] border border-[#23352C] flex items-center justify-center text-[#8CA397] shrink-0">
+                  <i data-lucide="${iconName}" class="w-4 h-4"></i>
+                </div>
+                <div class="min-w-0">
+                  <div class="text-xs font-semibold text-white truncate">${escapeHtml(cat)}</div>
+                  <div class="text-[11px] font-mono text-[#7B9387]">
+                    <span class="text-white font-semibold">${fmt(spent)}</span> / ${fmt(limit)}
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="text-xs font-bold font-mono ${remColor}">${catRem >= 0 ? fmt(catRem) + ' left' : fmt(Math.abs(catRem)) + ' over'}</span>
+                <button type="button" onclick="openSetBudgetModal('${escapeAttr(cat)}')" aria-label="Edit Budget" class="p-1.5 rounded-lg bg-[#0E1713] hover:bg-[#1E2E26] border border-[#23352C] text-[#7B9387] hover:text-white transition-colors">
+                  <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="w-full h-2 rounded-full bg-[#0E1713] overflow-hidden">
+              <div class="h-full rounded-full ${barColor} transition-all duration-300" style="width: ${Math.min(100, catPct)}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==================== RENDER TAB 4: SETTINGS ====================
+    function renderSettings() {
+      document.getElementById('set-bal-bank').value = state.wallets.bank;
+      document.getElementById('set-bal-mobile').value = state.wallets.mobile;
+      document.getElementById('set-bal-cash').value = state.wallets.cash;
+      document.getElementById('set-currency').value = state.currency;
+
+      document.getElementById('settings-exp-cats').innerHTML = state.categories.map(c => `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#0E1713] border border-[#23352C] text-xs text-white">
+          ${escapeHtml(c)}
+          ${state.categories.length > 1 ? `<button type="button" onclick="removeCategoryFromSettings('${escapeAttr(c)}')" class="text-[#7B9387] hover:text-[#EF4444] font-bold">×</button>` : ''}
+        </span>
+      `).join('');
+
+      document.getElementById('settings-inc-sources').innerHTML = state.incomeSources.map(s => `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#0E1713] border border-[#23352C] text-xs text-white">
+          ${escapeHtml(s)}
+          ${state.incomeSources.length > 1 ? `<button type="button" onclick="removeSourceFromSettings('${escapeAttr(s)}')" class="text-[#7B9387] hover:text-[#EF4444] font-bold">×</button>` : ''}
+        </span>
+      `).join('');
+    }
+
+    // ==================== OVERLAY MANAGEMENT ====================
+    function closeAllOverlays() {
+      document.getElementById('overlay-backdrop').classList.add('hidden');
+      ['sheet-quick-plus', 'sheet-home-due', 'sheet-add-income', 'sheet-add-due', 'sheet-complete-dues'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove('open');
+        el.classList.add('closed');
+      });
+      ['modal-edit-tx', 'modal-debt-form', 'modal-budget-limit', 'modal-confirm'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove('open');
+        el.classList.add('closed');
+      });
+      togglePlusCustomCat(false);
+      toggleIncCustomSource(false);
+    }
+
+    function openOverlay(id) {
+      closeAllOverlays();
+      document.getElementById('overlay-backdrop').classList.remove('hidden');
+      const el = document.getElementById(id);
+      el.classList.remove('closed');
+      el.classList.add('open');
+      lucide.createIcons({ root: el });
+    }
+
+    // ==================== CENTER '+' EXPENSE / TRANSFER POPUP ====================
+    function openQuickPlusSheet() {
+      setPlusMode('expense');
+      plusAmountStr = '0';
+      document.getElementById('plus-amount-display').textContent = '0';
+      const noteInp = document.getElementById('plus-note-input');
+      noteInp.value = '';
+      noteInp.classList.add('hidden');
+      if (!state.categories.includes(plusExpCategory)) {
+        plusExpCategory = state.categories[0] || 'Food';
+      }
+      renderPlusCategoryChips();
+      updatePlusContext();
+      openOverlay('sheet-quick-plus');
+    }
+
+    function setPlusMode(mode) {
+      plusMode = mode;
+      const expBtn = document.getElementById('plus-mode-expense');
+      const trfBtn = document.getElementById('plus-mode-transfer');
+      const expRows = document.getElementById('plus-expense-rows');
+      const trfRows = document.getElementById('plus-transfer-rows');
+      const subBtn = document.getElementById('plus-submit-btn');
+
+      if (mode === 'expense') {
+        expBtn.className = 'py-1.5 rounded-lg text-xs font-semibold bg-[#2B1917] text-[#EF4444] transition-all';
+        trfBtn.className = 'py-1.5 rounded-lg text-xs font-medium text-[#7B9387] hover:text-white transition-all';
+        expRows.classList.remove('hidden');
+        trfRows.classList.add('hidden');
+        subBtn.textContent = 'Save Expense';
+        subBtn.style.backgroundColor = '#EF4444';
+      } else {
+        trfBtn.className = 'py-1.5 rounded-lg text-xs font-semibold bg-[#1B2D38] text-sky-400 transition-all';
+        expBtn.className = 'py-1.5 rounded-lg text-xs font-medium text-[#7B9387] hover:text-white transition-all';
+        expRows.classList.add('hidden');
+        trfRows.classList.remove('hidden');
+        subBtn.textContent = 'Transfer Funds';
+        subBtn.style.backgroundColor = '#0EA5E9';
+        refreshPlusTransferChips();
+      }
+      updatePlusContext();
+    }
+
+    function updatePlusContext() {
+      const lbl = document.getElementById('plus-context-label');
+      lbl.textContent = plusMode === 'expense'
+        ? `From ${cap(plusExpWallet)} · ${plusExpCategory}`
+        : `${cap(plusTrfFrom)} → ${cap(plusTrfTo)}`;
+    }
+
+    function togglePlusNote() {
+      const inp = document.getElementById('plus-note-input');
+      const hidden = inp.classList.contains('hidden');
+      inp.classList.toggle('hidden', !hidden);
+      if (hidden) inp.focus();
+    }
+
+    function selectPlusExpWallet(w) {
+      plusExpWallet = w;
+      ['bank', 'mobile', 'cash'].forEach(id => {
+        document.getElementById(`p-ewal-${id}`).className = id === w
+          ? 'py-1.5 rounded-xl text-xs font-semibold bg-[#1E2E26] border border-[#22C55E]/50 text-white'
+          : 'py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]';
+      });
+      updatePlusContext();
+    }
+
+    function renderPlusCategoryChips() {
+      const row = document.getElementById('plus-cat-row');
+      const chips = state.categories.map(c => `
+        <button type="button" onclick="plusExpCategory='${escapeAttr(c)}'; renderPlusCategoryChips(); updatePlusContext();" class="shrink-0 px-3 py-1.5 rounded-xl text-xs transition-all ${c === plusExpCategory ? 'font-semibold bg-[#1E2E26] border border-[#22C55E]/50 text-white' : 'font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397] hover:text-white'}">${escapeHtml(c)}</button>
+      `).join('');
+      const addChip = `<button type="button" onclick="togglePlusCustomCat(true)" class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#1E2E26] border border-dashed border-[#3B594B] text-[#22C55E]">+ Custom</button>`;
+      row.innerHTML = chips + addChip;
+    }
+
+    function togglePlusCustomCat(show) {
+      const box = document.getElementById('plus-custom-cat-box');
+      if (show) {
+        box.classList.remove('hidden');
+        document.getElementById('plus-new-cat-inp').focus();
+      } else {
+        box.classList.add('hidden');
+        document.getElementById('plus-new-cat-inp').value = '';
+      }
+    }
+
+    function savePlusCustomCategory() {
+      const val = document.getElementById('plus-new-cat-inp').value.trim();
+      if (!val) return;
+      if (!state.categories.includes(val)) {
+        state.categories.push(val);
+        saveState();
+      }
+      plusExpCategory = val;
+      togglePlusCustomCat(false);
+      renderPlusCategoryChips();
+      updatePlusContext();
+      renderSettings();
+    }
+
+    function selectPlusTrfFrom(w) {
+      plusTrfFrom = w;
+      if (plusTrfTo === w) {
+        plusTrfTo = ['bank', 'mobile', 'cash'].find(x => x !== w);
+      }
+      refreshPlusTransferChips();
+      updatePlusContext();
+    }
+
+    function selectPlusTrfTo(w) {
+      if (w === plusTrfFrom) return;
+      plusTrfTo = w;
+      refreshPlusTransferChips();
+      updatePlusContext();
+    }
+
+    function refreshPlusTransferChips() {
+      ['bank', 'mobile', 'cash'].forEach(w => {
+        document.getElementById(`p-from-${w}`).className = w === plusTrfFrom
+          ? 'py-1.5 rounded-xl text-xs font-semibold bg-[#1B2D38] border border-sky-400/50 text-white'
+          : 'py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]';
+
+        const toBtn = document.getElementById(`p-to-${w}`);
+        if (w === plusTrfFrom) toBtn.className = 'py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#465E52] opacity-40';
+        else if (w === plusTrfTo) toBtn.className = 'py-1.5 rounded-xl text-xs font-semibold bg-[#1E2E26] border border-[#22C55E]/50 text-white';
+        else toBtn.className = 'py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]';
+      });
+    }
+
+    function bumpPlusAmount(addVal) {
+      const cur = parseFloat(plusAmountStr) || 0;
+      const next = cur + addVal;
+      plusAmountStr = String(next);
+      document.getElementById('plus-amount-display').textContent = fmt(next);
+    }
+
+    function pressPlusKey(k) {
+      if (k === 'CLR') plusAmountStr = '0';
+      else if (k === 'DEL') plusAmountStr = plusAmountStr.length > 1 ? plusAmountStr.slice(0, -1) : '0';
+      else {
+        if (plusAmountStr === '0') plusAmountStr = k;
+        else if (plusAmountStr.length < 9) plusAmountStr += k;
+      }
+      const val = parseFloat(plusAmountStr) || 0;
+      document.getElementById('plus-amount-display').textContent = fmt(val);
+    }
+
+    function submitQuickPlus() {
+      const amt = parseFloat(plusAmountStr) || 0;
+      if (amt <= 0) {
+        showToast('Enter an amount first', true);
+        return;
+      }
+      const note = document.getElementById('plus-note-input').value.trim();
+      const txDate = selectedMonthKey === getCurrentMonthKey() ? getTodayISO() : `${selectedMonthKey}-01`;
+
+      if (plusMode === 'expense') {
+        state.wallets[plusExpWallet] -= amt;
+        state.transactions.unshift({
+          id: 'tx_' + Date.now(),
+          type: 'expense',
+          amount: amt,
+          wallet: plusExpWallet,
+          toWallet: null,
+          category: plusExpCategory,
+          note,
+          date: txDate,
+          monthKey: selectedMonthKey,
+          originDueDate: null,
+          debtId: null
+        });
+        showToast(`Logged ${fmt(amt)} (${plusExpCategory})`);
+      } else {
+        state.wallets[plusTrfFrom] -= amt;
+        state.wallets[plusTrfTo] += amt;
+        state.transactions.unshift({
+          id: 'tx_' + Date.now(),
+          type: 'transfer',
+          amount: amt,
+          wallet: plusTrfFrom,
+          toWallet: plusTrfTo,
+          category: `${cap(plusTrfFrom)} → ${cap(plusTrfTo)}`,
+          note,
+          date: txDate,
+          monthKey: selectedMonthKey,
+          originDueDate: null,
+          debtId: null
+        });
+        showToast(`Transferred ${fmt(amt)} to ${cap(plusTrfTo)}`);
+      }
+
+      saveState();
+      closeAllOverlays();
+      renderAll();
+    }
+
+    // ==================== HOME DUE DETAIL & SETTLEMENT ====================
+    function openHomeDueDrawer(dueId) {
+      const due = state.dues.find(d => d.id === dueId);
+      if (!due) return;
+      activeHomeDueId = dueId;
+
+      const isRec = due.type === 'receivable';
+      const badge = document.getElementById('hdue-badge');
+      badge.textContent = isRec ? 'RECEIVABLE' : 'PAYABLE';
+      badge.className = isRec
+        ? 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#22C55E]/15 text-[#22C55E]'
+        : 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#F59E0B]/15 text-[#F59E0B]';
+
+      document.getElementById('hdue-rec-pill').classList.toggle('hidden', !due.recurring);
+      document.getElementById('hdue-title').textContent = due.title;
+      document.getElementById('hdue-amount').textContent = fmt(due.amount);
+      document.getElementById('hdue-date').textContent = due.dueDate ? formatHumanDate(due.dueDate) : 'Not set';
+      document.getElementById('hdue-wallet-prompt').textContent = isRec ? 'Receive into wallet:' : 'Pay using wallet:';
+
+      openOverlay('sheet-home-due');
+    }
+
+    function settleActiveHomeDue(wallet) {
+      if (!activeHomeDueId) return;
+      completeDueById(activeHomeDueId, wallet);
+      activeHomeDueId = null;
+      closeAllOverlays();
+    }
+
+    function deleteActiveHomeDue() {
+      if (!activeHomeDueId) return;
+      state.dues = state.dues.filter(d => d.id !== activeHomeDueId);
+      activeHomeDueId = null;
+      saveState();
+      closeAllOverlays();
+      renderAll();
+      showToast('Due removed');
+    }
+
+    function completeDueById(dueId, wallet) {
+      const due = state.dues.find(d => d.id === dueId);
+      if (!due || due.settled) return;
+
+      due.settled = true;
+      due.settledMonthKey = selectedMonthKey;
+      if (due.recurring) {
+        spawnNextMonthRecurringDue(due);
+      }
+
+      const isRec = due.type === 'receivable';
+      if (wallet !== 'none') {
+        if (isRec) state.wallets[wallet] += due.amount;
+        else state.wallets[wallet] -= due.amount;
+      }
+
+      const txDate = selectedMonthKey === getCurrentMonthKey() ? getTodayISO() : `${selectedMonthKey}-01`;
+      state.transactions.unshift({
+        id: 'tx_' + Date.now(),
+        type: isRec ? 'income' : 'expense',
+        amount: due.amount,
+        wallet,
+        toWallet: null,
+        category: isRec ? 'Receivable' : 'Payable',
+        note: due.title,
+        date: txDate,
+        monthKey: selectedMonthKey,
+        originDueDate: due.dueDate || null,
+        debtId: null
+      });
+
+      saveState();
+      renderAll();
+      showToast(`Completed "${due.title}"`);
+    }
+
+    // ==================== RECORDS -> ADD: 4 TILE POPUPS ====================
+    // Tile 1: Add Income Popup
+    function openAddIncomeSheet() {
+      incSheetAmountStr = '0';
+      document.getElementById('inc-sheet-display').textContent = '0';
+      if (!state.incomeSources.includes(incSheetSource)) {
+        incSheetSource = state.incomeSources[0] || 'Salary';
+      }
+      renderIncSheetSources();
+      updateIncSheetContext();
+      openOverlay('sheet-add-income');
+    }
+
+    function selectIncSheetWallet(w) {
+      incSheetWallet = w;
+      ['bank', 'mobile', 'cash'].forEach(id => {
+        document.getElementById(`is-wal-${id}`).className = id === w
+          ? 'py-1.5 rounded-xl text-xs font-semibold bg-[#1E2E26] border border-[#22C55E]/50 text-white'
+          : 'py-1.5 rounded-xl text-xs font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397]';
+      });
+      updateIncSheetContext();
+    }
+
+    function renderIncSheetSources() {
+      const row = document.getElementById('inc-sheet-sources');
+      const chips = state.incomeSources.map(s => `
+        <button type="button" onclick="incSheetSource='${escapeAttr(s)}'; renderIncSheetSources(); updateIncSheetContext();" class="shrink-0 px-3 py-1.5 rounded-xl text-xs transition-all ${s === incSheetSource ? 'font-semibold bg-[#1E2E26] border border-[#22C55E]/50 text-white' : 'font-medium bg-[#0E1713] border border-[#23352C] text-[#8CA397] hover:text-white'}">${escapeHtml(s)}</button>
+      `).join('');
+      row.innerHTML = chips + `<button type="button" onclick="toggleIncCustomSource(true)" class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#1E2E26] border border-dashed border-[#3B594B] text-[#22C55E]">+ Custom</button>`;
+    }
+
+    function toggleIncCustomSource(show) {
+      const box = document.getElementById('inc-custom-source-box');
+      if (show) {
+        box.classList.remove('hidden');
+        document.getElementById('inc-new-source-inp').focus();
+      } else {
+        box.classList.add('hidden');
+        document.getElementById('inc-new-source-inp').value = '';
+      }
+    }
+
+    function saveIncCustomSource() {
+      const val = document.getElementById('inc-new-source-inp').value.trim();
+      if (!val) return;
+      if (!state.incomeSources.includes(val)) {
+        state.incomeSources.push(val);
+        saveState();
+      }
+      incSheetSource = val;
+      toggleIncCustomSource(false);
+      renderIncSheetSources();
+      updateIncSheetContext();
+      renderSettings();
+    }
+
+    function updateIncSheetContext() {
+      document.getElementById('inc-sheet-context').textContent = `Into ${cap(incSheetWallet)} · ${incSheetSource}`;
+    }
+
+    function pressIncKey(k) {
+      if (k === 'CLR') incSheetAmountStr = '0';
+      else if (k === 'DEL') incSheetAmountStr = incSheetAmountStr.length > 1 ? incSheetAmountStr.slice(0, -1) : '0';
+      else {
+        if (incSheetAmountStr === '0') incSheetAmountStr = k;
+        else if (incSheetAmountStr.length < 9) incSheetAmountStr += k;
+      }
+      document.getElementById('inc-sheet-display').textContent = fmt(parseFloat(incSheetAmountStr) || 0);
+    }
+
+    function submitAddIncome() {
+      const amt = parseFloat(incSheetAmountStr) || 0;
+      if (amt <= 0) {
+        showToast('Enter an income amount', true);
+        return;
+      }
+      const txDate = selectedMonthKey === getCurrentMonthKey() ? getTodayISO() : `${selectedMonthKey}-01`;
+      state.wallets[incSheetWallet] += amt;
+      state.transactions.unshift({
+        id: 'tx_' + Date.now(),
+        type: 'income',
+        amount: amt,
+        wallet: incSheetWallet,
+        toWallet: null,
+        category: incSheetSource,
+        note: '',
+        date: txDate,
+        monthKey: selectedMonthKey,
+        originDueDate: null,
+        debtId: null
+      });
+      saveState();
+      closeAllOverlays();
+      renderAll();
+      showToast(`Added +${fmt(amt)} (${incSheetSource})`);
+    }
+
+    // Tile 2: Add Receivable / Payable Popup (with Recurring Monthly Toggle)
+    function openAddDueSheet() {
+      setNewDueType('receivable');
+      document.getElementById('nd-title-inp').value = '';
+      document.getElementById('nd-amount-inp').value = '';
+      document.getElementById('nd-date-inp').value = '';
+      document.getElementById('nd-recurring-toggle').checked = false;
+      openOverlay('sheet-add-due');
+    }
+
+    function setNewDueType(type) {
+      newDueType = type;
+      const rBtn = document.getElementById('nd-type-receivable');
+      const pBtn = document.getElementById('nd-type-payable');
+      const subBtn = document.getElementById('nd-submit-btn');
+
+      if (type === 'receivable') {
+        rBtn.className = 'py-2 rounded-lg text-xs font-semibold bg-[#132A1E] text-[#22C55E] transition-all';
+        pBtn.className = 'py-2 rounded-lg text-xs font-medium text-[#7B9387] hover:text-white transition-all';
+        subBtn.textContent = 'Save Receivable';
+        subBtn.style.backgroundColor = '#22C55E';
+      } else {
+        pBtn.className = 'py-2 rounded-lg text-xs font-semibold bg-[#2B2210] text-[#F59E0B] transition-all';
+        rBtn.className = 'py-2 rounded-lg text-xs font-medium text-[#7B9387] hover:text-white transition-all';
+        subBtn.textContent = 'Save Payable';
+        subBtn.style.backgroundColor = '#F59E0B';
+      }
+    }
+
+    function submitNewDue() {
+      const title = document.getElementById('nd-title-inp').value.trim();
+      const amount = parseFloat(document.getElementById('nd-amount-inp').value);
+      const dueDate = document.getElementById('nd-date-inp').value || '';
+      const recurring = document.getElementById('nd-recurring-toggle').checked;
+
+      if (!title || !amount || amount <= 0) {
+        showToast('Enter title and amount', true);
+        return;
+      }
+
+      const newDue = {
+        id: 'due_' + Date.now(),
+        type: newDueType,
+        title,
+        amount,
+        dueDate,
+        recurring,
+        settled: false,
+        settledMonthKey: null,
+        monthKey: selectedMonthKey,
+        recurringSpawned: false
+      };
+
+      state.dues.unshift(newDue);
+      if (recurring) {
+        spawnNextMonthRecurringDue(newDue);
+      }
+
+      saveState();
+      closeAllOverlays();
+      renderAll();
+      showToast(`Added ${newDueType}${recurring ? ' (Monthly)' : ''}`);
+    }
+
+    // Tiles 3 & 4: Complete Receivable / Complete Payable Popup
+    function openCompleteDueSheet(mode) {
+      completeSheetMode = mode;
+      expandedCompleteDueId = null;
+      const titleEl = document.getElementById('comp-sheet-title');
+      titleEl.textContent = mode === 'receivable' ? 'Complete Receivable' : 'Complete Payable';
+      titleEl.className = `text-xs font-bold uppercase tracking-wider ${mode === 'receivable' ? 'text-[#22C55E]' : 'text-[#F59E0B]'}`;
+
+      renderCompleteDueSheetList();
+      openOverlay('sheet-complete-dues');
+    }
+
+    function renderCompleteDueSheetList() {
+      const listEl = document.getElementById('comp-sheet-list');
+      const items = state.dues.filter(d => !d.settled && d.type === completeSheetMode);
+
+      if (!items.length) {
+        listEl.innerHTML = `
+          <div class="bg-[#0E1713] border border-[#23352C] rounded-2xl p-6 text-center text-xs text-[#7B9387]">
+            No pending ${completeSheetMode}s right now.
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = items.map(d => {
+        const isExpanded = expandedCompleteDueId === d.id;
+        const isRec = d.type === 'receivable';
+        return `
+          <div class="bg-[#0E1713] border border-[#23352C] rounded-2xl p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div class="text-xs font-semibold text-white truncate">${escapeHtml(d.title)}</div>
+                <div class="text-[10px] text-[#7B9387] mt-0.5">
+                  ${d.dueDate ? `Due ${formatHumanDate(d.dueDate)}` : 'No due date'}${d.recurring ? ' · Monthly' : ''}
+                </div>
+              </div>
+              <div class="flex items-center gap-2.5 shrink-0">
+                <span class="text-sm font-bold font-mono text-white">${fmt(d.amount)}</span>
+                <button type="button" onclick="expandedCompleteDueId='${isExpanded ? '' : d.id}'; renderCompleteDueSheetList(); lucide.createIcons({root: document.getElementById('comp-sheet-list')});" aria-label="Choose Wallet" class="w-8 h-8 rounded-xl bg-[#1E2E26] hover:bg-[#22C55E] ${isRec ? 'text-[#22C55E]' : 'text-[#F59E0B]'} hover:text-[#09120E] border border-[#2C4237] flex items-center justify-center transition-colors">
+                  <i data-lucide="check" class="w-4 h-4 stroke-[2.5]"></i>
+                </button>
+              </div>
+            </div>
+
+            ${isExpanded ? `
+              <div class="pt-2.5 border-t border-[#1D2B24] space-y-1.5">
+                <div class="text-[10px] text-[#7B9387]">${isRec ? 'Collect into wallet:' : 'Pay from wallet:'}</div>
+                <div class="grid grid-cols-4 gap-1.5">
+                  <button type="button" onclick="completeDueFromSheet('${d.id}', 'bank')" class="py-1.5 rounded-xl bg-[#16221C] hover:bg-[#22C55E] hover:text-[#09120E] text-[11px] font-semibold text-white transition-colors">Bank</button>
+                  <button type="button" onclick="completeDueFromSheet('${d.id}', 'mobile')" class="py-1.5 rounded-xl bg-[#16221C] hover:bg-[#22C55E] hover:text-[#09120E] text-[11px] font-semibold text-white transition-colors">Mobile</button>
+                  <button type="button" onclick="completeDueFromSheet('${d.id}', 'cash')" class="py-1.5 rounded-xl bg-[#16221C] hover:bg-[#22C55E] hover:text-[#09120E] text-[11px] font-semibold text-white transition-colors">Cash</button>
+                  <button type="button" onclick="completeDueFromSheet('${d.id}', 'none')" class="py-1.5 rounded-xl bg-[#16221C] hover:bg-[#23352C] text-[10px] font-medium text-[#8CA397] hover:text-white transition-colors">None</button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function completeDueFromSheet(dueId, wallet) {
+      completeDueById(dueId, wallet);
+      expandedCompleteDueId = null;
+      renderCompleteDueSheetList();
+      lucide.createIcons({ root: document.getElementById('comp-sheet-list') });
+      const remaining = state.dues.filter(d => !d.settled && d.type === completeSheetMode).length;
+      if (remaining === 0) closeAllOverlays();
+    }
+
+    // ==================== EDIT / DELETE HISTORY TRANSACTION (RECALCULATING BALANCES) ====================
+    function applyTxEffect(tx, multiplier) {
+      // multiplier = +1 to apply, -1 to revert
+      if (tx.type === 'expense') {
+        if (tx.wallet && tx.wallet !== 'none') state.wallets[tx.wallet] -= tx.amount * multiplier;
+      } else if (tx.type === 'income') {
+        if (tx.wallet && tx.wallet !== 'none') state.wallets[tx.wallet] += tx.amount * multiplier;
+      } else if (tx.type === 'transfer') {
+        if (tx.wallet && tx.wallet !== 'none') state.wallets[tx.wallet] -= tx.amount * multiplier;
+        if (tx.toWallet && tx.toWallet !== 'none') state.wallets[tx.toWallet] += tx.amount * multiplier;
+      }
+    }
+
+    function openEditTxModal(txId) {
+      const tx = state.transactions.find(t => t.id === txId);
+      if (!tx) return;
+      editingTxId = txId;
+
+      document.getElementById('etx-type').value = tx.type;
+      document.getElementById('etx-amount').value = tx.amount;
+      document.getElementById('etx-wallet').value = tx.wallet || 'mobile';
+      document.getElementById('etx-towallet').value = tx.toWallet || 'cash';
+      document.getElementById('etx-category').value = tx.category || '';
+      document.getElementById('etx-date').value = tx.date || getTodayISO();
+      document.getElementById('etx-note').value = tx.note || '';
+
+      handleEditTxTypeChange();
+      openOverlay('modal-edit-tx');
+    }
+
+    function handleEditTxTypeChange() {
+      const type = document.getElementById('etx-type').value;
+      const isTrf = type === 'transfer';
+      document.getElementById('etx-wallet-lbl').textContent = isTrf ? 'From Wallet' : 'Wallet';
+      document.getElementById('etx-towallet-wrap').classList.toggle('hidden', !isTrf);
+      document.getElementById('etx-cat-wrap').classList.toggle('hidden', isTrf);
+    }
+
+    function saveEditedTx() {
+      const tx = state.transactions.find(t => t.id === editingTxId);
+      if (!tx) return;
+
+      const newType = document.getElementById('etx-type').value;
+      const newAmount = parseFloat(document.getElementById('etx-amount').value);
+      const newWallet = document.getElementById('etx-wallet').value;
+      const newToWallet = newType === 'transfer' ? document.getElementById('etx-towallet').value : null;
+      const newDate = document.getElementById('etx-date').value || tx.date;
+      const newNote = document.getElementById('etx-note').value.trim();
+      const newCategory = newType === 'transfer'
+        ? `${cap(newWallet)} → ${cap(newToWallet)}`
+        : (document.getElementById('etx-category').value.trim() || cap(newType));
+
+      if (!newAmount || newAmount <= 0) {
+        showToast('Enter a valid amount', true);
+        return;
+      }
+      if (newType === 'transfer' && newWallet === newToWallet) {
+        showToast('From and To wallets must differ', true);
+        return;
+      }
+
+      // Revert old wallet impact, apply updated impact
+      applyTxEffect(tx, -1);
+
+      tx.type = newType;
+      tx.amount = newAmount;
+      tx.wallet = newWallet;
+      tx.toWallet = newToWallet;
+      tx.category = newCategory;
+      tx.date = newDate;
+      tx.monthKey = newDate.slice(0, 7);
+      tx.note = newNote;
+
+      applyTxEffect(tx, 1);
+
+      saveState();
+      closeAllOverlays();
+      renderAll();
+      showToast('Transaction updated');
+    }
+
+    function deleteEditedTx() {
+      const idx = state.transactions.findIndex(t => t.id === editingTxId);
+      if (idx === -1) return;
+      const tx = state.transactions[idx];
+
+      applyTxEffect(tx, -1);
+      state.transactions.splice(idx, 1);
+
+      saveState();
+      closeAllOverlays();
+      renderAll();
+      showToast('Transaction deleted');
+    }
+
+    // ==================== DEBTS (LOANS TAKEN) HANDLERS ====================
+    function openAddDebtModal() {
+      editingDebtId = null;
+      document.getElementById('debt-modal-title').textContent = 'Add Debt / Loan';
+      document.getElementById('debt-f-lender').value = '';
+      document.getElementById('debt-f-total').value = '';
+      document.getElementById('debt-f-paid').value = '0';
+      document.getElementById('debt-f-note').value = '';
+      document.getElementById('debt-f-paid-wrap').classList.add('hidden');
+      document.getElementById('debt-modal-actions').innerHTML = `
+        <button type="button" onclick="saveDebtForm()" class="w-full py-3 rounded-xl bg-[#F59E0B] text-[#09120E] font-bold text-xs tracking-wide">
+          Save Debt
+        </button>
+      `;
+      openOverlay('modal-debt-form');
+    }
+
+    function openEditDebtModal(debtId) {
+      const d = state.debts.find(item => item.id === debtId);
+      if (!d) return;
+      editingDebtId = debtId;
+      document.getElementById('debt-modal-title').textContent = 'Edit Debt';
+      document.getElementById('debt-f-lender').value = d.lender;
+      document.getElementById('debt-f-total').value = d.totalAmount;
+      document.getElementById('debt-f-paid').value = d.paidAmount;
+      document.getElementById('debt-f-note').value = d.note || '';
+      document.getElementById('debt-f-paid-wrap').classList.remove('hidden');
+      document.getElementById('debt-modal-actions').innerHTML = `
+        <div class="grid grid-cols-2 gap-2.5">
+          <button type="button" onclick="deleteDebtItem('${d.id}')" class="py-2.5 rounded-xl bg-[#2B1917] border border-[#4A2925] text-xs font-semibold text-[#EF4444]">
+            Delete
+          </button>
+          <button type="button" onclick="saveDebtForm()" class="py-2.5 rounded-xl bg-[#F59E0B] text-[#09120E] text-xs font-bold">
+            Save Changes
+          </button>
+        </div>
+      `;
+      openOverlay('modal-debt-form');
+    }
+
+    function saveDebtForm() {
+      const lender = document.getElementById('debt-f-lender').value.trim();
+      const totalAmount = parseFloat(document.getElementById('debt-f-total').value);
+      const paidAmount = parseFloat(document.getElementById('debt-f-paid').value) || 0;
+      const note = document.getElementById('debt-f-note').value.trim();
+
+      if (!lender || !totalAmount || totalAmount <= 0) {
+        showToast('Enter lender and loan amount', true);
+        return;
+      }
+
+      if (editingDebtId) {
+        const d = state.debts.find(item => item.id === editingDebtId);
+        if (d) {
+          d.lender = lender;
+          d.totalAmount = totalAmount;
+          d.paidAmount = Math.min(totalAmount, Math.max(0, paidAmount));
+          d.note = note;
+        }
+        showToast('Debt updated');
+      } else {
+        state.debts.unshift({
+          id: 'debt_' + Date.now(),
+          lender,
+          totalAmount,
+          paidAmount: 0,
+          note,
+          createdAt: getTodayISO()
+        });
+        showToast('Debt added');
+      }
+
+      saveState();
+      closeAllOverlays();
+      renderAll();
+    }
+
+    function deleteDebtItem(debtId) {
+      state.debts = state.debts.filter(d => d.id !== debtId);
+      saveState();
+      closeAllOverlays();
+      renderAll();
+      showToast('Debt deleted');
+    }
+
+    function toggleDebtPayBox(debtId) {
+      payingDebtId = payingDebtId === debtId ? null : debtId;
+      renderDebtsList();
+      lucide.createIcons();
+    }
+
+    function submitDebtRepayment(debtId, wallet) {
+      const debt = state.debts.find(d => d.id === debtId);
+      if (!debt) return;
+      const inp = document.getElementById(`debt-pay-inp-${debtId}`);
+      const payAmt = parseFloat(inp.value);
+      const remaining = debt.totalAmount - debt.paidAmount;
+
+      if (!payAmt || payAmt <= 0 || payAmt > remaining) {
+        showToast(`Enter between 1 and ${fmt(remaining)}`, true);
+        return;
+      }
+
+      // Deducts from chosen wallet (which reduces Net Balance) and logs expense to History
+      debt.paidAmount += payAmt;
+      state.wallets[wallet] -= payAmt;
+      payingDebtId = null;
+
+      const txDate = selectedMonthKey === getCurrentMonthKey() ? getTodayISO() : `${selectedMonthKey}-01`;
+      state.transactions.unshift({
+        id: 'tx_' + Date.now(),
+        type: 'expense',
+        amount: payAmt,
+        wallet,
+        toWallet: null,
+        category: 'Debt Repayment',
+        note: debt.lender,
+        date: txDate,
+        monthKey: selectedMonthKey,
+        originDueDate: null,
+        debtId: debt.id
+      });
+
+      saveState();
+      renderAll();
+      showToast(`Paid ${fmt(payAmt)} from ${cap(wallet)}`);
+    }
+
+    // ==================== BUDGET MODAL HANDLERS ====================
+    function openSetBudgetModal(preselectCat = null) {
+      editingBudgetCat = preselectCat;
+      const sel = document.getElementById('bud-m-cat');
+      const limInp = document.getElementById('bud-m-limit');
+      const remBtn = document.getElementById('bud-m-remove');
+
+      sel.innerHTML = state.categories.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
+
+      if (preselectCat) {
+        document.getElementById('bud-modal-title').textContent = 'Edit Category Limit';
+        sel.value = preselectCat;
+        sel.disabled = true;
+        limInp.value = state.budgets[preselectCat] || '';
+        remBtn.classList.remove('hidden');
+        document.getElementById('bud-m-btns').className = 'grid grid-cols-2 gap-2.5 pt-1';
+      } else {
+        document.getElementById('bud-modal-title').textContent = 'Set Category Limit';
+        sel.disabled = false;
+        const firstUnbudgeted = state.categories.find(c => state.budgets[c] === undefined) || state.categories[0];
+        sel.value = firstUnbudgeted;
+        limInp.value = state.budgets[firstUnbudgeted] || '';
+        remBtn.classList.add('hidden');
+        document.getElementById('bud-m-btns').className = 'grid grid-cols-1 pt-1';
+      }
+
+      openOverlay('modal-budget-limit');
+    }
+
+    function saveBudgetLimitFromModal() {
+      const cat = document.getElementById('bud-m-cat').value;
+      const lim = parseFloat(document.getElementById('bud-m-limit').value);
+      if (!cat || !lim || lim <= 0) {
+        showToast('Enter a valid monthly limit', true);
+        return;
+      }
+      state.budgets[cat] = lim;
+      saveState();
+      closeAllOverlays();
+      renderAll();
+      showToast(`Set ${cat} budget to ${fmt(lim)}`);
+    }
+
+    function removeBudgetLimitFromModal() {
+      const cat = document.getElementById('bud-m-cat').value;
+      delete state.budgets[cat];
+      saveState();
+      closeAllOverlays();
+      renderAll();
+      showToast(`Removed ${cat} budget`);
+    }
+
+    // ==================== SETTINGS & RESET HANDLERS ====================
+    function saveWalletBalancesFromSettings() {
+      state.wallets.bank = parseFloat(document.getElementById('set-bal-bank').value) || 0;
+      state.wallets.mobile = parseFloat(document.getElementById('set-bal-mobile').value) || 0;
+      state.wallets.cash = parseFloat(document.getElementById('set-bal-cash').value) || 0;
+      saveState();
+      renderAll();
+      showToast('Wallet balances saved');
+    }
+
+    function confirmResetAction(mode) {
+      const titleEl = document.getElementById('conf-title');
+      const descEl = document.getElementById('conf-desc');
+      const confirmBtn = document.getElementById('conf-confirm-btn');
+
+      if (mode === 'month') {
+        titleEl.textContent = `Reset ${formatMonthLabel(selectedMonthKey)}?`;
+        descEl.textContent = `This clears all transaction history and receivables/payables for ${formatMonthLabel(selectedMonthKey)}. Your wallet balances and all Debt logs will remain completely untouched.`;
+        confirmBtn.onclick = () => {
+          state.transactions = state.transactions.filter(tx => tx.monthKey !== selectedMonthKey);
+          state.dues = state.dues.filter(d => d.monthKey !== selectedMonthKey);
+          // Debts are NEVER modified
+          saveState();
+          closeAllOverlays();
+          renderAll();
+          showToast(`Cleared ${formatMonthLabel(selectedMonthKey)} transactions`);
+        };
+      } else {
+        titleEl.textContent = 'Reset Everything?';
+        descEl.textContent = 'This clears all transactions, receivables/payables, and budgets, and sets Bank, Mobile, and Cash balances to 0. All Debt logs will remain completely untouched.';
+        confirmBtn.onclick = () => {
+          state.wallets = { bank: 0, mobile: 0, cash: 0 };
+          state.transactions = [];
+          state.dues = [];
+          state.budgets = {};
+          // Debts are NEVER modified
+          saveState();
+          closeAllOverlays();
+          renderAll();
+          showToast('All balances & records reset (Debts preserved)');
+        };
+      }
+
+      openOverlay('modal-confirm');
+    }
+
+    function updateCurrencySymbol(sym) {
+      state.currency = sym;
+      saveState();
+      renderAll();
+    }
+
+    function addCategoryFromSettings() {
+      const inp = document.getElementById('settings-new-cat');
+      const val = inp.value.trim();
+      if (!val) return;
+      if (!state.categories.includes(val)) {
+        state.categories.push(val);
+        saveState();
+        renderAll();
+        showToast(`Added category "${val}"`);
+      }
+      inp.value = '';
+    }
+
+    function removeCategoryFromSettings(cat) {
+      if (state.categories.length <= 1) return;
+      state.categories = state.categories.filter(c => c !== cat);
+      delete state.budgets[cat];
+      saveState();
+      renderAll();
+    }
+
+    function addSourceFromSettings() {
+      const inp = document.getElementById('settings-new-source');
+      const val = inp.value.trim();
+      if (!val) return;
+      if (!state.incomeSources.includes(val)) {
+        state.incomeSources.push(val);
+        saveState();
+        renderAll();
+        showToast(`Added source "${val}"`);
+      }
+      inp.value = '';
+    }
+
+    function removeSourceFromSettings(src) {
+      if (state.incomeSources.length <= 1) return;
+      state.incomeSources = state.incomeSources.filter(s => s !== src);
+      saveState();
+      renderAll();
+    }
+
+    // ==================== JSON & CSV BACKUP / RESTORE ====================
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `finledger-backup-${getTodayISO()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('JSON backup exported');
+    }
+
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!data || typeof data !== 'object' || !data.wallets) {
+            throw new Error('Invalid backup format');
+          }
+          state = {
+            currency: data.currency !== undefined ? data.currency : '৳',
+            wallets: {
+              bank: Number(data.wallets.bank) || 0,
+              mobile: Number(data.wallets.mobile) || 0,
+              cash: Number(data.wallets.cash) || 0
+            },
+            categories: Array.isArray(data.categories) && data.categories.length ? data.categories : ['Food', 'Transport', 'Bills', 'Shopping', 'Other'],
+            incomeSources: Array.isArray(data.incomeSources) && data.incomeSources.length ? data.incomeSources : ['Salary', 'Client', 'Freelance', 'Refund'],
+            budgets: data.budgets || {},
+            transactions: Array.isArray(data.transactions) ? data.transactions : [],
+            dues: Array.isArray(data.dues) ? data.dues : [],
+            debts: Array.isArray(data.debts) ? data.debts : []
+          };
+          saveState();
+          renderAll();
+          showToast('Backup restored successfully');
+        } catch (err) {
+          showToast('Invalid JSON backup file', true);
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function exportCSV() {
+      const headers = ['Date', 'Type', 'Category/Source', 'Amount', 'Wallet', 'To Wallet', 'Note'];
+      const rows = state.transactions.map(tx => [
+        tx.date,
+        tx.type,
+        `"${(tx.category || '').replace(/"/g, '""')}"`,
+        tx.amount,
+        tx.wallet,
+        tx.toWallet || '',
+        `"${(tx.note || '').replace(/"/g, '""')}"`
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `finledger-transactions-${getTodayISO()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV exported');
+    }
+
+    // ==================== SANITIZATION HELPERS ====================
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(str) {
+      return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      ensureRecurringDuesForMonth(selectedMonthKey);
+      renderAll();
+    });
+  </script>
+</body>
+</html>
